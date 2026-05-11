@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Minus, Plus, Shuffle } from 'lucide-react';
 import { Player } from '../types';
-import { ImageWithFallback } from './ImageWithFallback';
 import { HexBackground } from './HexBackground';
 
 interface SorteioConfigProps {
@@ -41,11 +40,7 @@ export function SorteioConfig({ players, onGenerateTeams, onBack }: SorteioConfi
           ← Voltar
         </button>
         <div className="flex items-center gap-3">
-          <ImageWithFallback
-            src="/src/imports/Logotipo_Bull_2026.png"
-            alt="Bull Analytics"
-            className="w-10 h-10 object-contain"
-          />
+          <img src="/logo.png" alt="Bull Analytics" className="w-10 h-10 object-contain" />
           <h1 className="text-[#F0F4FF]">Configurar Sorteio</h1>
         </div>
       </div>

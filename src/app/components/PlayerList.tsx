@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Users, Plus, Loader2, ClipboardList, Trash2 } from 'lucide-react';
 import { Player } from '../types';
-import { ImageWithFallback } from './ImageWithFallback';
 import { HexBackground } from './HexBackground';
 
 interface PlayerListProps {
@@ -48,11 +47,7 @@ export function PlayerList({ players, loading, onAddPlayer, onImportPlayers, onR
       {/* Header */}
       <div className="relative px-4 pt-6 pb-4 border-b border-[#1E8FD5]/20">
         <div className="flex items-center gap-3 mb-4">
-          <ImageWithFallback
-            src="/src/imports/Logotipo_Bull_2026.png"
-            alt="Bull Analytics"
-            className="w-12 h-12 object-contain"
-          />
+          <img src="/logo.png" alt="Bull Analytics" className="w-12 h-12 object-contain" />
           <div>
             <div className="text-xs text-[#4A90C4] tracking-wide">BULL ANALYTICS</div>
             <h1 className="text-[#F0F4FF] tracking-tight">Sorteie</h1>
@@ -168,15 +163,16 @@ export function PlayerList({ players, loading, onAddPlayer, onImportPlayers, onR
 
       {/* FABs */}
       <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3">
-        {/* Importar lista */}
-        <button
-          onClick={onImportPlayers}
-          className="flex items-center gap-2 px-4 py-3 bg-[#0F2035] border border-[#1E8FD5]/40 hover:border-[#1E8FD5] text-[#1E8FD5] rounded-full shadow-lg transition-all hover:bg-[#1E8FD5]/10 text-sm"
-          aria-label="Importar lista"
-        >
-          <ClipboardList size={18} />
-          Importar lista
-        </button>
+        {/* Importar lista — só aparece quando já há jogadores */}
+        {players.length > 0 && (
+          <button
+            onClick={onImportPlayers}
+            className="w-14 h-14 bg-[#0F2035] border border-[#1E8FD5]/40 hover:border-[#1E8FD5] text-[#1E8FD5] rounded-full flex items-center justify-center shadow-lg transition-all hover:bg-[#1E8FD5]/10"
+            aria-label="Importar lista"
+          >
+            <ClipboardList size={20} />
+          </button>
+        )}
 
         {/* Adicionar jogador */}
         <button

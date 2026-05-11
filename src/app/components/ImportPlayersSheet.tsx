@@ -114,7 +114,7 @@ export function ImportPlayersSheet({ isOpen, onClose, onAdd }: ImportPlayersShee
               <textarea
                 value={text}
                 onChange={e => setText(e.target.value)}
-                placeholder={"1. Samanta\n2. Gustavo sk\n3. Luiza\n4. Márcio\n..."}
+                placeholder={"1. Fernanda\n2. Lucas\n3. Beatriz\n4. Rodrigo\n5. Camila\n..."}
                 className="flex-1 min-h-[200px] bg-[#162844] border border-[#1E8FD5]/30 focus:border-[#1E8FD5] rounded-xl p-4 text-[#F0F4FF] text-sm outline-none resize-none placeholder:text-[#4A90C4]/40 font-mono leading-relaxed"
                 autoFocus
               />

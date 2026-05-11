@@ -1,6 +1,5 @@
 import { Share2, Copy, CheckCircle, XCircle } from 'lucide-react';
 import { ResultadoSorteio } from '../types';
-import { ImageWithFallback } from './ImageWithFallback';
 import { HexBackground } from './HexBackground';
 
 interface TeamResultsProps {
@@ -61,11 +60,7 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
         </button>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <ImageWithFallback
-              src="/src/imports/Logotipo_Bull_2026.png"
-              alt="Bull Analytics"
-              className="w-10 h-10 object-contain"
-            />
+            <img src="/logo.png" alt="Bull Analytics" className="w-10 h-10 object-contain" />
             <h1 className="text-[#F0F4FF]">Times Sorteados</h1>
           </div>
           <button
