@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Loader2, ClipboardList, ChevronLeft } from 'lucide-react';
+import { X, Loader2, ClipboardList, ChevronLeft, Clipboard } from 'lucide-react';
 import { NewPlayerPayload } from '../types';
 
 interface ImportPlayersSheetProps {
@@ -35,6 +35,17 @@ export function ImportPlayersSheet({ isOpen, onClose, onAdd }: ImportPlayersShee
   const [text, setText] = useState('');
   const [players, setPlayers] = useState<PendingPlayer[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [pasteError, setPasteError] = useState(false);
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const content = await navigator.clipboard.readText();
+      if (content.trim()) setText(content);
+      setPasteError(false);
+    } catch {
+      setPasteError(true);
+    }
+  };
 
   const handleParse = () => {
     const names = parsePastedList(text);
@@ -108,15 +119,28 @@ export function ImportPlayersSheet({ isOpen, onClose, onAdd }: ImportPlayersShee
           {/* ── STEP 1: Colar lista ── */}
           {step === 'paste' && (
             <div className="px-6 pb-6 flex flex-col gap-4 flex-1 min-h-0">
-              <p className="text-[#4A90C4] text-sm shrink-0">
-                Cole a lista numerada do grupo (ex: do WhatsApp):
-              </p>
+              <div className="flex items-center justify-between shrink-0">
+                <p className="text-[#4A90C4] text-sm">
+                  Cole a lista numerada do grupo (ex: do WhatsApp):
+                </p>
+                <button
+                  onClick={handlePasteFromClipboard}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1E8FD5]/10 hover:bg-[#1E8FD5]/20 border border-[#1E8FD5]/30 text-[#1E8FD5] rounded-lg text-xs transition-all shrink-0"
+                >
+                  <Clipboard size={13} />
+                  Colar
+                </button>
+              </div>
+              {pasteError && (
+                <p className="text-[#d4183d] text-xs -mt-2 shrink-0">
+                  Permissão negada. Cole manualmente na caixa abaixo.
+                </p>
+              )}
               <textarea
                 value={text}
-                onChange={e => setText(e.target.value)}
+                onChange={e => { setText(e.target.value); setPasteError(false); }}
                 placeholder={"1. Fernanda\n2. Lucas\n3. Beatriz\n4. Rodrigo\n5. Camila\n..."}
                 className="flex-1 min-h-[200px] bg-[#162844] border border-[#1E8FD5]/30 focus:border-[#1E8FD5] rounded-xl p-4 text-[#F0F4FF] text-sm outline-none resize-none placeholder:text-[#4A90C4]/40 font-mono leading-relaxed"
-                autoFocus
               />
               <button
                 onClick={handleParse}
