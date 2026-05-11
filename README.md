@@ -22,12 +22,18 @@ Cola a lista numerada do WhatsApp diretamente no app. Um botão "Colar" lê a á
 ### Configurar jogadores
 Para cada jogador detectado, o organizador define:
 - **Gênero:** Masculino, Feminino ou Outro
-- **Nível:** 1 (Iniciante) · 2 (Intermediário) · 3 (Avançado) · 4 (Expert)
+- **Nível:** 1 (Iniciante) · 2 (Praticante) · 3 (Intermediário) · 4 (Avançado) · 5 (Expert)
 
 Jogadores podem ser removidos da lista antes de confirmar.
 
 ### Adicionar individualmente
 Botão "+" abre um formulário para adicionar um jogador por vez, com os mesmos campos de gênero e nível.
+
+### Editar jogador
+Ícone de lápis em cada card abre uma sheet para editar nome, gênero e nível de qualquer jogador já na lista.
+
+### Toasts de feedback
+Notificações visuais ao adicionar, editar, remover e limpar jogadores — aparecem na parte inferior da tela e somem automaticamente após 3 segundos.
 
 ### Sorteio equilibrado
 Configuração de quantos times e quantos jogadores por time. O app mostra quantos jogadores serão titulares e quantos ficarão como reserva. O botão de sortear só ativa quando há jogadores suficientes.
@@ -40,6 +46,11 @@ Exibe os times com indicadores de equilíbrio de nível e gênero. Jogadores exc
 ### Limpar lista
 Ícone de lixeira no header limpa todos os jogadores de uma vez, com confirmação inline.
 
+### PWA — Instalar na tela inicial
+O app pode ser instalado como um app nativo:
+- **Android (Chrome):** banner automático ou menu ⋮ → "Adicionar à tela inicial"
+- **iOS (Safari):** botão compartilhar ↑ → "Adicionar à Tela de Início"
+
 ---
 
 ## Algoritmo de sorteio
@@ -51,6 +62,8 @@ score = (variância de nível entre times × 3) + (desequilíbrio de gênero × 
 ```
 
 O peso maior no gênero garante que, quando possível, os times tenham distribuição igualitária de homens e mulheres. O resultado indica se os times ficaram equilibrados em nível (diferença máxima de 3 pts entre times) e em gênero (diferença máxima de 1 jogador por gênero entre times).
+
+O gênero **Outro** é tratado como neutro — entra no sorteio normalmente pelo nível, sem penalidade de distribuição.
 
 ---
 
@@ -74,29 +87,28 @@ Não há backend nem banco de dados. Toda a lógica roda no browser. Os dados fi
 ```
 sorteie-frontend/
 ├── public/
-│   └── logo.png                  ← logotipo Bull Analytics
+│   ├── favicon.png               ← logo do Sorteie App (favicon + PWA icon)
+│   ├── logo.png                  ← logotipo Bull Analytics
+│   └── manifest.json             ← configuração PWA
 ├── src/
 │   ├── main.tsx                  ← entry point
 │   ├── app/
 │   │   ├── App.tsx               ← orquestrador de telas e estado global
 │   │   ├── types.ts              ← interfaces TypeScript (Player, Time, ResultadoSorteio)
 │   │   ├── services/
-│   │   │   ├── api.ts            ← operações de localStorage (getPlayers, createPlayer, etc.)
+│   │   │   ├── api.ts            ← operações de localStorage (getPlayers, createPlayer, updatePlayer, etc.)
 │   │   │   └── sorteio.ts        ← algoritmo de balanceamento (1000 iterações)
 │   │   └── components/
 │   │       ├── PlayerList.tsx        ← tela principal com lista de jogadores
 │   │       ├── AddPlayerSheet.tsx    ← bottom sheet para adicionar jogador
+│   │       ├── EditPlayerSheet.tsx   ← bottom sheet para editar jogador
 │   │       ├── ImportPlayersSheet.tsx← bottom sheet para importar lista colada
+│   │       ├── Toast.tsx             ← notificações de feedback (auto-dismiss 3s)
 │   │       ├── SorteioConfig.tsx     ← tela de configuração do sorteio
 │   │       ├── TeamResults.tsx       ← tela de resultado com compartilhamento
 │   │       ├── HexBackground.tsx     ← fundo hexagonal decorativo
-│   │       ├── ImageWithFallback.tsx ← img com fallback de erro
-│   │       └── ui/               ← componentes shadcn/ui (accordion, button, etc.)
-│   └── styles/
-│       ├── index.css             ← importa os demais estilos
-│       ├── theme.css             ← tokens de cor Bull Analytics
-│       ├── fonts.css             ← DM Sans + DM Mono
-│       └── globals.css
+│   │       └── ImageWithFallback.tsx ← img com fallback de erro
+├── index.html                    ← meta tags, OG tags, manifest, favicon
 ├── .gitignore
 ├── package.json
 ├── tsconfig.json
@@ -131,14 +143,6 @@ git push
 ## Backend (arquivado)
 
 Uma versão anterior do projeto usava Node.js + Express + SQLite (via sql.js) como backend para persistência entre sessões. O código está preservado em `../_backend_archive/` caso seja necessário reativar no futuro (ex: múltiplos organizadores, histórico de sorteios, grupos separados por evento).
-
-Para rodar o backend arquivado:
-```bash
-cd _backend_archive
-npm install
-node src/server.js
-# → http://localhost:3000
-```
 
 ---
 
