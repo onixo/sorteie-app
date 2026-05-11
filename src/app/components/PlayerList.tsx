@@ -45,12 +45,13 @@ export function PlayerList({ players, loading, onAddPlayer, onImportPlayers, onR
       <HexBackground />
 
       {/* Header */}
-      <div className="relative px-4 pt-6 pb-4 border-b border-[#1E8FD5]/20">
-        <div className="flex items-center gap-3 mb-4">
-          <img src="/logo.png" alt="Bull Analytics" className="w-12 h-12 object-contain" />
-          <div>
-            <div className="text-xs text-[#4A90C4] tracking-wide">BULL ANALYTICS</div>
-            <h1 className="text-[#F0F4FF] tracking-tight">Sorteie</h1>
+      <div className="relative px-4 pt-8 pb-4 border-b border-[#1E8FD5]/20">
+        <div className="flex flex-col items-center mb-4">
+          <img src="/favicon.png" alt="Sorteie" className="w-20 h-20 object-contain mb-3 drop-shadow-lg" />
+          <h1 className="text-[#F0F4FF] text-2xl font-semibold tracking-widest uppercase">Sorteie</h1>
+          <div className="flex items-center gap-1.5 mt-2">
+            <img src="/logo.png" alt="Bull Analytics" className="w-5 h-5 object-contain" />
+            <span className="text-[#4A90C4] text-xs">Bull Analytics</span>
           </div>
         </div>
 
