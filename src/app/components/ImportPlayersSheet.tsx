@@ -14,7 +14,7 @@ interface PendingPlayer {
   nivel: number;
 }
 
-const SKILL_LABELS = ['Iniciante', 'Intermediário', 'Avançado', 'Expert'];
+const SKILL_LABELS = ['Iniciante', 'Praticante', 'Intermediário', 'Avançado', 'Expert'];
 
 function parsePastedList(text: string): string[] {
   return text
@@ -212,7 +212,7 @@ export function ImportPlayersSheet({ isOpen, onClose, onAdd }: ImportPlayersShee
                         <span className="text-[#1BAF8A] text-xs font-medium">{SKILL_LABELS[player.nivel - 1]}</span>
                       </div>
                       <div className="flex gap-1.5">
-                        {[1, 2, 3, 4].map(lvl => (
+                        {[1, 2, 3, 4, 5].map(lvl => (
                           <button
                             key={lvl}
                             onClick={() => updatePlayer(idx, { nivel: lvl })}

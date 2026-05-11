@@ -140,7 +140,7 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
                     <span className="text-[#4A90C4] text-sm">{getGenderIcon(player.genero)}</span>
                   </div>
                   <div className="flex gap-1">
-                    {[1, 2, 3, 4].map((level) => (
+                    {[1, 2, 3, 4, 5].map((level) => (
                       <div
                         key={level}
                         className={`w-1.5 h-1.5 rounded-full ${
@@ -169,7 +169,7 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
                     <span className="text-[#4A90C4]/60 text-sm">{getGenderIcon(player.genero)}</span>
                   </div>
                   <div className="flex gap-1">
-                    {[1, 2, 3, 4].map((level) => (
+                    {[1, 2, 3, 4, 5].map((level) => (
                       <div
                         key={level}
                         className={`w-1.5 h-1.5 rounded-full ${

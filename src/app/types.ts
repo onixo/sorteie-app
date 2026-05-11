@@ -5,7 +5,7 @@ export interface Player {
   id: number;
   nome: string;
   genero: 'M' | 'F' | 'O';
-  nivel: number; // 1=Iniciante, 2=Intermediário, 3=Avançado, 4=Expert
+  nivel: number; // 1=Iniciante, 2=Praticante, 3=Intermediário, 4=Avançado, 5=Expert
   criado_em?: string;
 }
 

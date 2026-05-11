@@ -14,7 +14,7 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd }: AddPlayerSheetProps) 
   const [nivel, setNivel] = useState(2);
   const [submitting, setSubmitting] = useState(false);
 
-  const skillLabels = ['Iniciante', 'Intermediário', 'Avançado', 'Expert'];
+  const skillLabels = ['Iniciante', 'Praticante', 'Intermediário', 'Avançado', 'Expert'];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,7 +107,7 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd }: AddPlayerSheetProps) 
                 Nível: <span className="text-[#1BAF8A]">{skillLabels[nivel - 1]}</span>
               </label>
               <div className="flex gap-2">
-                {[1, 2, 3, 4].map((lvl) => (
+                {[1, 2, 3, 4, 5].map((lvl) => (
                   <button
                     key={lvl}
                     type="button"
