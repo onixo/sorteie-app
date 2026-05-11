@@ -20,9 +20,8 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
 
   const copyToClipboard = () => {
     const text = times.map((time) => {
-      const header = `${time.nome} (${time.totalNivel} pts, ${time.masculinos}M/${time.femininos}F)`;
       const jogadores = time.jogadores.map(p => `- ${p.nome}`).join('\n');
-      return `${header}\n${jogadores}`;
+      return `${time.nome}\n${jogadores}`;
     }).join('\n\n');
 
     const reservaText = reservas.length > 0
@@ -34,9 +33,8 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
 
   const shareWhatsApp = () => {
     const text = times.map((time) => {
-      const header = `*${time.nome}* (${time.totalNivel} pts, ${time.masculinos}M/${time.femininos}F)`;
       const jogadores = time.jogadores.map(p => `- ${p.nome}`).join('\n');
-      return `${header}\n${jogadores}`;
+      return `*${time.nome}*\n${jogadores}`;
     }).join('\n\n');
 
     const reservaText = reservas.length > 0

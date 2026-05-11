@@ -166,49 +166,57 @@ export function ImportPlayersSheet({ isOpen, onClose, onAdd }: ImportPlayersShee
               <div className="px-6 overflow-y-auto flex-1 space-y-3 pb-2">
                 {players.map((player, idx) => (
                   <div key={idx} className="bg-[#162844] rounded-xl p-4 border border-[#1E8FD5]/20">
+
                     {/* Nome + remover */}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[#F0F4FF] font-medium truncate flex-1 mr-2">{player.nome}</span>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[#4A90C4]/50 text-xs shrink-0">{idx + 1}.</span>
+                        <span className="text-[#F0F4FF] font-medium truncate">{player.nome}</span>
+                      </div>
                       <button
                         onClick={() => removeFromList(idx)}
-                        className="text-[#4A90C4]/50 hover:text-[#d4183d] transition-colors text-xl leading-none shrink-0"
+                        className="text-[#4A90C4]/40 hover:text-[#d4183d] active:text-[#d4183d] transition-colors ml-3 shrink-0 p-1"
                         aria-label={`Remover ${player.nome}`}
                       >
-                        ×
+                        <X size={16} />
                       </button>
                     </div>
 
                     {/* Gênero */}
-                    <div className="flex gap-2 mb-3">
-                      {(['M', 'F', 'O'] as const).map(g => {
-                        const labels = { M: '♂ Masc', F: '♀ Fem', O: '⚥ Outro' };
-                        return (
-                          <button
-                            key={g}
-                            onClick={() => updatePlayer(idx, { genero: g })}
-                            className={`flex-1 py-2 rounded-lg text-xs transition-all ${
-                              player.genero === g
-                                ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-semibold'
-                                : 'bg-[#0D2847] text-[#4A90C4]'
-                            }`}
-                          >
-                            {labels[g]}
-                          </button>
-                        );
-                      })}
+                    <div className="mb-1">
+                      <span className="text-[#4A90C4] text-xs mb-2 block">Gênero</span>
+                      <div className="flex gap-2">
+                        {(['M', 'F', 'O'] as const).map(g => {
+                          const labels = { M: '♂ Masc', F: '♀ Fem', O: '⚥ Outro' };
+                          return (
+                            <button
+                              key={g}
+                              onClick={() => updatePlayer(idx, { genero: g })}
+                              className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                                player.genero === g
+                                  ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-semibold'
+                                  : 'bg-[#0D2847] text-[#4A90C4]'
+                              }`}
+                            >
+                              {labels[g]}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* Nível */}
-                    <div className="flex gap-2 items-center">
-                      <span className="text-[#4A90C4] text-xs w-12 shrink-0">
-                        {SKILL_LABELS[player.nivel - 1]}
-                      </span>
-                      <div className="flex gap-1.5 flex-1">
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[#4A90C4] text-xs">Nível</span>
+                        <span className="text-[#1BAF8A] text-xs font-medium">{SKILL_LABELS[player.nivel - 1]}</span>
+                      </div>
+                      <div className="flex gap-1.5">
                         {[1, 2, 3, 4].map(lvl => (
                           <button
                             key={lvl}
                             onClick={() => updatePlayer(idx, { nivel: lvl })}
-                            className={`flex-1 h-8 rounded-lg text-xs font-medium transition-all ${
+                            className={`flex-1 h-10 rounded-lg text-sm font-medium transition-all ${
                               lvl <= player.nivel
                                 ? 'bg-gradient-to-t from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628]'
                                 : 'bg-[#0D2847] text-[#4A90C4]/50'
@@ -219,6 +227,7 @@ export function ImportPlayersSheet({ isOpen, onClose, onAdd }: ImportPlayersShee
                         ))}
                       </div>
                     </div>
+
                   </div>
                 ))}
               </div>
