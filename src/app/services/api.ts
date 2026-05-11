@@ -40,6 +40,13 @@ export async function deletePlayer(id: number): Promise<void> {
   savePlayers(loadPlayers().filter(p => p.id !== id));
 }
 
+export async function updatePlayer(id: number, payload: NewPlayerPayload): Promise<Player> {
+  const players = loadPlayers();
+  const updated = players.map(p => p.id === id ? { ...p, ...payload } : p);
+  savePlayers(updated);
+  return updated.find(p => p.id === id)!;
+}
+
 export async function clearPlayers(): Promise<void> {
   localStorage.removeItem(STORAGE_KEY);
 }

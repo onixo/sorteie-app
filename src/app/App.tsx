@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PlayerList } from './components/PlayerList';
 import { AddPlayerSheet } from './components/AddPlayerSheet';
 import { ImportPlayersSheet } from './components/ImportPlayersSheet';
+import { EditPlayerSheet } from './components/EditPlayerSheet';
 import { SorteioConfig } from './components/SorteioConfig';
 import { TeamResults } from './components/TeamResults';
+import { Toast } from './components/Toast';
 import { Player, NewPlayerPayload, ResultadoSorteio } from './types';
-import { getPlayers, createPlayer, deletePlayer, clearPlayers, sortear } from './services/api';
+import { getPlayers, createPlayer, deletePlayer, updatePlayer, clearPlayers, sortear } from './services/api';
 
 type Screen = 'list' | 'config' | 'results';
 
@@ -14,46 +16,62 @@ export default function App() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [resultado, setResultado] = useState<ResultadoSorteio | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // ─── Carregar jogadores do localStorage ao montar ────────────────────────
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+  }, []);
+
   useEffect(() => {
     getPlayers().then(setPlayers);
   }, []);
 
-  // ─── Adicionar jogador ───────────────────────────────────────────────────
   const addPlayer = async (payload: NewPlayerPayload) => {
     try {
       const newPlayer = await createPlayer(payload);
       setPlayers(prev => [...prev, newPlayer]);
+      showToast(`${newPlayer.nome} adicionado!`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao adicionar jogador.');
-      throw err; // repropaga para o ImportPlayersSheet saber que falhou
+      throw err;
     }
   };
 
-  // ─── Remover jogador ─────────────────────────────────────────────────────
   const removePlayer = async (id: number) => {
     try {
+      const player = players.find(p => p.id === id);
       await deletePlayer(id);
       setPlayers(prev => prev.filter(p => p.id !== id));
+      showToast(`${player?.nome ?? 'Jogador'} removido.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao remover jogador.');
     }
   };
 
-  // ─── Limpar lista ────────────────────────────────────────────────────────
+  const handleUpdatePlayer = async (id: number, payload: NewPlayerPayload) => {
+    try {
+      const updated = await updatePlayer(id, payload);
+      setPlayers(prev => prev.map(p => p.id === id ? updated : p));
+      showToast(`${updated.nome} atualizado!`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao editar jogador.');
+      throw err;
+    }
+  };
+
   const handleClearPlayers = async () => {
     try {
       await clearPlayers();
       setPlayers([]);
+      showToast('Lista limpa.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao limpar lista.');
     }
   };
 
-  // ─── Sortear times ───────────────────────────────────────────────────────
   const generateTeams = async (numTimes: number, jogadoresPorTime: number) => {
     try {
       setError(null);
@@ -65,7 +83,6 @@ export default function App() {
     }
   };
 
-  // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="max-w-md mx-auto size-full bg-[#0A1628]">
       {/* Banner de erro global */}
@@ -82,6 +99,15 @@ export default function App() {
         </div>
       )}
 
+      {/* Toast */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {screen === 'list' && (
         <>
           <PlayerList
@@ -90,6 +116,7 @@ export default function App() {
             onAddPlayer={() => setIsAddPlayerOpen(true)}
             onImportPlayers={() => setIsImportOpen(true)}
             onRemovePlayer={removePlayer}
+            onEditPlayer={setEditingPlayer}
             onClearPlayers={handleClearPlayers}
           />
           <AddPlayerSheet
@@ -101,6 +128,12 @@ export default function App() {
             isOpen={isImportOpen}
             onClose={() => setIsImportOpen(false)}
             onAdd={addPlayer}
+          />
+          <EditPlayerSheet
+            player={editingPlayer}
+            isOpen={editingPlayer !== null}
+            onClose={() => setEditingPlayer(null)}
+            onUpdate={handleUpdatePlayer}
           />
           {players.length >= 2 && (
             <button

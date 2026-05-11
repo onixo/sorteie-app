@@ -1,0 +1,18 @@
+{
+  "name": "Sorteie — Bull Analytics",
+  "short_name": "Sorteie",
+  "description": "Sorteio inteligente para o seu vôlei",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A1628",
+  "theme_color": "#0A1628",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

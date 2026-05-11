@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Plus, Loader2, ClipboardList, Trash2 } from 'lucide-react';
+import { Users, Plus, Loader2, ClipboardList, Trash2, Pencil } from 'lucide-react';
 import { Player } from '../types';
 import { HexBackground } from './HexBackground';
 
@@ -9,10 +9,11 @@ interface PlayerListProps {
   onAddPlayer: () => void;
   onImportPlayers: () => void;
   onRemovePlayer: (id: number) => void;
+  onEditPlayer: (player: Player) => void;
   onClearPlayers: () => Promise<void>;
 }
 
-export function PlayerList({ players, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onClearPlayers }: PlayerListProps) {
+export function PlayerList({ players, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onEditPlayer, onClearPlayers }: PlayerListProps) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
 
@@ -149,14 +150,23 @@ export function PlayerList({ players, loading, onAddPlayer, onImportPlayers, onR
                 </div>
               </div>
 
-              {/* Remove Button — sempre visível no mobile */}
-              <button
-                onClick={() => onRemovePlayer(player.id)}
-                className="text-[#4A90C4]/40 hover:text-[#d4183d] active:text-[#d4183d] transition-colors px-2 text-2xl leading-none shrink-0"
-                aria-label={`Remover ${player.nome}`}
-              >
-                ×
-              </button>
+              {/* Editar e Remover */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => onEditPlayer(player)}
+                  className="text-[#4A90C4]/40 hover:text-[#1E8FD5] active:text-[#1E8FD5] transition-colors p-2"
+                  aria-label={`Editar ${player.nome}`}
+                >
+                  <Pencil size={15} />
+                </button>
+                <button
+                  onClick={() => onRemovePlayer(player.id)}
+                  className="text-[#4A90C4]/40 hover:text-[#d4183d] active:text-[#d4183d] transition-colors p-2 text-2xl leading-none"
+                  aria-label={`Remover ${player.nome}`}
+                >
+                  ×
+                </button>
+              </div>
             </div>
           </div>
         ))}
