@@ -81,20 +81,21 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd }: AddPlayerSheetProps) 
               <label className="block text-[#4A90C4] text-sm mb-3">Gênero</label>
               <div className="flex gap-2">
                 {(['M', 'F', 'O'] as const).map((g) => {
-                  const labels = { M: '♂ Masculino', F: '♀ Feminino', O: '⚥ Outro' };
+                  const labels = { M: ['♂', 'Masculino'], F: ['♀', 'Feminino'], O: ['⚥', 'Outro'] };
                   return (
                     <button
                       key={g}
                       type="button"
                       onClick={() => setGenero(g)}
                       disabled={submitting}
-                      className={`flex-1 py-3 rounded-lg transition-all text-sm ${
+                      className={`flex-1 py-3 rounded-lg transition-all text-sm flex items-center justify-center gap-1 ${
                         genero === g
                           ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-medium'
                           : 'bg-[#162844] text-[#4A90C4] hover:bg-[#1E8FD5]/10'
                       }`}
                     >
-                      {labels[g]}
+                      <span className="leading-none">{labels[g][0]}</span>
+                      <span>{labels[g][1]}</span>
                     </button>
                   );
                 })}
