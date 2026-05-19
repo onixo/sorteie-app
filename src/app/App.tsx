@@ -6,7 +6,7 @@ import { EditPlayerSheet } from './components/EditPlayerSheet';
 import { SorteioConfig } from './components/SorteioConfig';
 import { TeamResults } from './components/TeamResults';
 import { Toast } from './components/Toast';
-import { Player, NewPlayerPayload, ResultadoSorteio } from './types';
+import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio } from './types';
 import { getPlayers, createPlayer, deletePlayer, updatePlayer, clearPlayers, sortear } from './services/api';
 
 type Screen = 'list' | 'config' | 'results';
@@ -72,10 +72,10 @@ export default function App() {
     }
   };
 
-  const generateTeams = async (numTimes: number, jogadoresPorTime: number) => {
+  const generateTeams = async (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio = 'equilibrado') => {
     try {
       setError(null);
-      const res = await sortear({ numTimes, jogadoresPorTime });
+      const res = await sortear({ numTimes, jogadoresPorTime, modoSorteio });
       setResultado(res);
       setScreen('results');
     } catch (err) {
@@ -161,7 +161,8 @@ export default function App() {
           onShuffle={() => {
             generateTeams(
               resultado.config.numTimes,
-              resultado.config.jogadoresPorTime
+              resultado.config.jogadoresPorTime,
+              resultado.config.modoSorteio
             );
           }}
         />

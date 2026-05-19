@@ -23,6 +23,10 @@ export interface Time {
   outros: number;
 }
 
+// ─── Modo de Sorteio ──────────────────────────────────────────────────────────
+
+export type ModoSorteio = 'equilibrado' | 'genero';
+
 // ─── Resultado do Sorteio ─────────────────────────────────────────────────────
 
 export interface ResultadoSorteio {
@@ -31,6 +35,7 @@ export interface ResultadoSorteio {
   config: {
     numTimes: number;
     jogadoresPorTime: number;
+    modoSorteio: ModoSorteio;
   };
   times: Time[];
   reservas: Player[];

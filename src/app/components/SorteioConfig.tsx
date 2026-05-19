@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Minus, Plus, Shuffle } from 'lucide-react';
-import { Player } from '../types';
+import { Minus, Plus, Shuffle, Scale, Venus } from 'lucide-react';
+import { Player, ModoSorteio } from '../types';
 import { HexBackground } from './HexBackground';
 
 interface SorteioConfigProps {
   players: Player[];
-  onGenerateTeams: (numTimes: number, jogadoresPorTime: number) => Promise<void>;
+  onGenerateTeams: (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio) => Promise<void>;
   onBack: () => void;
 }
 
 export function SorteioConfig({ players, onGenerateTeams, onBack }: SorteioConfigProps) {
   const [numTimes, setNumTimes] = useState(2);
   const [jogadoresPorTime, setJogadoresPorTime] = useState(3);
+  const [modoSorteio, setModoSorteio] = useState<ModoSorteio>('equilibrado');
   const [sorting, setSorting] = useState(false);
 
   const totalRequired = numTimes * jogadoresPorTime;
@@ -21,7 +22,7 @@ export function SorteioConfig({ players, onGenerateTeams, onBack }: SorteioConfi
     if (!canGenerate || sorting) return;
     try {
       setSorting(true);
-      await onGenerateTeams(numTimes, jogadoresPorTime);
+      await onGenerateTeams(numTimes, jogadoresPorTime, modoSorteio);
     } finally {
       setSorting(false);
     }
@@ -118,6 +119,50 @@ export function SorteioConfig({ players, onGenerateTeams, onBack }: SorteioConfi
               {players.length - totalRequired} jogador(es) ficarão como reserva
             </div>
           )}
+        </div>
+
+        {/* Modo de Sorteio */}
+        <div className="bg-[#0F2035] rounded-xl p-6 border border-[#1E8FD5]/20">
+          <label className="block text-[#4A90C4] text-sm mb-4">Modo de Sorteio</label>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => setModoSorteio('equilibrado')}
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                modoSorteio === 'equilibrado'
+                  ? 'border-[#1BAF8A] bg-[#1BAF8A]/10'
+                  : 'border-[#1E8FD5]/20 bg-[#162844] hover:border-[#1E8FD5]/40'
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-1">
+                <Scale size={16} className={modoSorteio === 'equilibrado' ? 'text-[#1BAF8A]' : 'text-[#4A90C4]'} />
+                <span className={`font-medium text-sm ${modoSorteio === 'equilibrado' ? 'text-[#1BAF8A]' : 'text-[#F0F4FF]'}`}>
+                  Equilibrado
+                </span>
+              </div>
+              <p className="text-xs text-[#4A90C4] leading-relaxed">
+                Tenta balancear nível e gênero ao mesmo tempo. Pode haver pequena variação nos dois.
+              </p>
+            </button>
+
+            <button
+              onClick={() => setModoSorteio('genero')}
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                modoSorteio === 'genero'
+                  ? 'border-[#1E8FD5] bg-[#1E8FD5]/10'
+                  : 'border-[#1E8FD5]/20 bg-[#162844] hover:border-[#1E8FD5]/40'
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-1">
+                <Venus size={16} className={modoSorteio === 'genero' ? 'text-[#1E8FD5]' : 'text-[#4A90C4]'} />
+                <span className={`font-medium text-sm ${modoSorteio === 'genero' ? 'text-[#1E8FD5]' : 'text-[#F0F4FF]'}`}>
+                  Prioridade de Gênero
+                </span>
+              </div>
+              <p className="text-xs text-[#4A90C4] leading-relaxed">
+                Garante a distribuição mais igualitária possível de mulheres e homens entre os times, mesmo que o nível fique desequilibrado.
+              </p>
+            </button>
+          </div>
         </div>
 
         {/* Generate Button */}

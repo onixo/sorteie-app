@@ -10,8 +10,8 @@ interface ImportPlayersSheetProps {
 
 interface PendingPlayer {
   nome: string;
-  genero: 'M' | 'F' | 'O';
-  nivel: number;
+  genero: 'M' | 'F' | 'O' | null;
+  nivel: number | null;
 }
 
 const SKILL_LABELS = ['Iniciante', 'Praticante', 'Intermediário', 'Avançado', 'Expert'];
@@ -50,7 +50,7 @@ export function ImportPlayersSheet({ isOpen, onClose, onAdd }: ImportPlayersShee
   const handleParse = () => {
     const names = parsePastedList(text);
     if (names.length === 0) return;
-    setPlayers(names.map(nome => ({ nome, genero: 'M', nivel: 2 })));
+    setPlayers(names.map(nome => ({ nome, genero: null, nivel: null })));
     setStep('configure');
   };
 
@@ -62,12 +62,15 @@ export function ImportPlayersSheet({ isOpen, onClose, onAdd }: ImportPlayersShee
     setPlayers(prev => prev.filter((_, i) => i !== index));
   };
 
+  const allFilled = players.length > 0 && players.every(p => p.genero !== null && p.nivel !== null);
+  const incompleteCount = players.filter(p => p.genero === null || p.nivel === null).length;
+
   const handleSubmit = async () => {
-    if (submitting || players.length === 0) return;
+    if (submitting || !allFilled) return;
     try {
       setSubmitting(true);
       for (const player of players) {
-        await onAdd(player);
+        await onAdd(player as { nome: string; genero: 'M' | 'F' | 'O'; nivel: number });
       }
       handleClose();
     } finally {
@@ -164,79 +167,102 @@ export function ImportPlayersSheet({ isOpen, onClose, onAdd }: ImportPlayersShee
 
               {/* Lista scrollável */}
               <div className="px-6 overflow-y-auto flex-1 space-y-3 pb-2">
-                {players.map((player, idx) => (
-                  <div key={idx} className="bg-[#162844] rounded-xl p-4 border border-[#1E8FD5]/20">
-
-                    {/* Nome + remover */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-[#4A90C4]/50 text-xs shrink-0">{idx + 1}.</span>
-                        <span className="text-[#F0F4FF] font-medium truncate">{player.nome}</span>
+                {players.map((player, idx) => {
+                  const incomplete = player.genero === null || player.nivel === null;
+                  return (
+                    <div
+                      key={idx}
+                      className={`bg-[#162844] rounded-xl p-4 border transition-colors ${
+                        incomplete ? 'border-[#d4183d]/40' : 'border-[#1E8FD5]/20'
+                      }`}
+                    >
+                      {/* Nome + remover */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[#4A90C4]/50 text-xs shrink-0">{idx + 1}.</span>
+                          <span className="text-[#F0F4FF] font-medium truncate">{player.nome}</span>
+                        </div>
+                        <div className="flex items-center gap-2 ml-3 shrink-0">
+                          {incomplete && (
+                            <span className="text-[#d4183d] text-xs">Preencha</span>
+                          )}
+                          <button
+                            onClick={() => removeFromList(idx)}
+                            className="text-[#4A90C4]/40 hover:text-[#d4183d] active:text-[#d4183d] transition-colors p-1"
+                            aria-label={`Remover ${player.nome}`}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => removeFromList(idx)}
-                        className="text-[#4A90C4]/40 hover:text-[#d4183d] active:text-[#d4183d] transition-colors ml-3 shrink-0 p-1"
-                        aria-label={`Remover ${player.nome}`}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
 
-                    {/* Gênero */}
-                    <div className="mb-1">
-                      <span className="text-[#4A90C4] text-xs mb-2 block">Gênero</span>
-                      <div className="flex gap-2">
-                        {(['M', 'F', 'O'] as const).map(g => {
-                          const labels = { M: '♂ Masc', F: '♀ Fem', O: '⚥ Outro' };
-                          return (
+                      {/* Gênero */}
+                      <div className="mb-1">
+                        <span className={`text-xs mb-2 block ${player.genero === null ? 'text-[#d4183d]/70' : 'text-[#4A90C4]'}`}>
+                          Gênero
+                        </span>
+                        <div className="flex gap-2">
+                          {(['M', 'F', 'O'] as const).map(g => {
+                            const labels = { M: '♂ Masc', F: '♀ Fem', O: '⚥ Outro' };
+                            return (
+                              <button
+                                key={g}
+                                onClick={() => updatePlayer(idx, { genero: g })}
+                                className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                                  player.genero === g
+                                    ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-semibold'
+                                    : 'bg-[#0D2847] text-[#4A90C4]'
+                                }`}
+                              >
+                                {labels[g]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Nível */}
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={`text-xs ${player.nivel === null ? 'text-[#d4183d]/70' : 'text-[#4A90C4]'}`}>
+                            Nível
+                          </span>
+                          <span className={`text-xs font-medium ${player.nivel !== null ? 'text-[#1BAF8A]' : 'text-[#4A90C4]/40'}`}>
+                            {player.nivel !== null ? SKILL_LABELS[player.nivel - 1] : 'Selecione'}
+                          </span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          {[1, 2, 3, 4, 5].map(lvl => (
                             <button
-                              key={g}
-                              onClick={() => updatePlayer(idx, { genero: g })}
-                              className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                                player.genero === g
-                                  ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-semibold'
-                                  : 'bg-[#0D2847] text-[#4A90C4]'
+                              key={lvl}
+                              onClick={() => updatePlayer(idx, { nivel: lvl })}
+                              className={`flex-1 h-10 rounded-lg text-sm font-medium transition-all ${
+                                player.nivel !== null && lvl <= player.nivel
+                                  ? 'bg-gradient-to-t from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628]'
+                                  : 'bg-[#0D2847] text-[#4A90C4]/50'
                               }`}
                             >
-                              {labels[g]}
+                              {lvl}
                             </button>
-                          );
-                        })}
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Nível */}
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[#4A90C4] text-xs">Nível</span>
-                        <span className="text-[#1BAF8A] text-xs font-medium">{SKILL_LABELS[player.nivel - 1]}</span>
-                      </div>
-                      <div className="flex gap-1.5">
-                        {[1, 2, 3, 4, 5].map(lvl => (
-                          <button
-                            key={lvl}
-                            onClick={() => updatePlayer(idx, { nivel: lvl })}
-                            className={`flex-1 h-10 rounded-lg text-sm font-medium transition-all ${
-                              lvl <= player.nivel
-                                ? 'bg-gradient-to-t from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628]'
-                                : 'bg-[#0D2847] text-[#4A90C4]/50'
-                            }`}
-                          >
-                            {lvl}
-                          </button>
-                        ))}
-                      </div>
                     </div>
-
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Botão confirmar */}
-              <div className="px-6 pt-3 pb-6 border-t border-[#1E8FD5]/20 shrink-0">
+              <div className="px-6 pt-3 pb-6 border-t border-[#1E8FD5]/20 shrink-0 space-y-2">
+                {incompleteCount > 0 && (
+                  <p className="text-center text-xs text-[#d4183d]/80">
+                    {incompleteCount} jogador{incompleteCount !== 1 ? 'es' : ''} sem gênero ou nível definido
+                  </p>
+                )}
                 <button
                   onClick={handleSubmit}
-                  disabled={submitting || players.length === 0}
+                  disabled={submitting || !allFilled}
                   className="w-full py-4 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#4A90C4] text-[#0A1628] font-medium rounded-xl transition-all flex items-center justify-center gap-2"
                 >
                   {submitting ? (

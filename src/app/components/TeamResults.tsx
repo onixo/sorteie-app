@@ -1,4 +1,4 @@
-import { Share2, Copy, CheckCircle, XCircle } from 'lucide-react';
+import { Share2, Copy, CheckCircle, XCircle, Scale, Venus } from 'lucide-react';
 import { ResultadoSorteio } from '../types';
 import { HexBackground } from './HexBackground';
 
@@ -10,6 +10,7 @@ interface TeamResultsProps {
 
 export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) {
   const { times, reservas, nivelEquilibrado, generoEquilibrado } = resultado;
+  const modoSorteio = resultado.config.modoSorteio;
   const teamColors = ['#1BAF8A', '#1E8FD5', '#1565A8', '#4A90C4', '#1BAF8A', '#1E8FD5'];
 
   const getGenderIcon = (genero: 'M' | 'F' | 'O') => {
@@ -18,7 +19,10 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
     return '⚥';
   };
 
+  const modoLabel = modoSorteio === 'genero' ? 'Prioridade de Gênero' : 'Equilibrado';
+
   const copyToClipboard = () => {
+    const header = `Modo de Sorteio: ${modoLabel}\n\n`;
     const text = times.map((time) => {
       const jogadores = time.jogadores.map(p => `- ${p.nome}`).join('\n');
       return `${time.nome}\n${jogadores}`;
@@ -28,10 +32,11 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
       ? `\n\nReservas:\n${reservas.map(p => `- ${p.nome}`).join('\n')}`
       : '';
 
-    navigator.clipboard.writeText(text + reservaText);
+    navigator.clipboard.writeText(header + text + reservaText);
   };
 
   const shareWhatsApp = () => {
+    const header = `*Modo de Sorteio: ${modoLabel}*\n\n`;
     const text = times.map((time) => {
       const jogadores = time.jogadores.map(p => `- ${p.nome}`).join('\n');
       return `*${time.nome}*\n${jogadores}`;
@@ -41,7 +46,7 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
       ? `\n\n*Reservas:*\n${reservas.map(p => `- ${p.nome}`).join('\n')}`
       : '';
 
-    window.open(`https://wa.me/?text=${encodeURIComponent(text + reservaText)}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(header + text + reservaText)}`, '_blank');
   };
 
   return (
@@ -71,16 +76,13 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
       </div>
 
       {/* Balance Badges */}
-      <div className="relative px-4 pt-4 flex gap-2">
+      <div className="relative px-4 pt-4 flex flex-wrap gap-2">
         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
           nivelEquilibrado
             ? 'bg-[#1BAF8A]/15 text-[#1BAF8A] border border-[#1BAF8A]/30'
             : 'bg-[#d4183d]/10 text-[#d4183d] border border-[#d4183d]/30'
         }`}>
-          {nivelEquilibrado
-            ? <CheckCircle size={12} />
-            : <XCircle size={12} />
-          }
+          {nivelEquilibrado ? <CheckCircle size={12} /> : <XCircle size={12} />}
           Nível {nivelEquilibrado ? 'equilibrado' : 'desbalanceado'}
         </div>
 
@@ -89,11 +91,17 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
             ? 'bg-[#1BAF8A]/15 text-[#1BAF8A] border border-[#1BAF8A]/30'
             : 'bg-[#d4183d]/10 text-[#d4183d] border border-[#d4183d]/30'
         }`}>
-          {generoEquilibrado
-            ? <CheckCircle size={12} />
-            : <XCircle size={12} />
-          }
+          {generoEquilibrado ? <CheckCircle size={12} /> : <XCircle size={12} />}
           Gênero {generoEquilibrado ? 'equilibrado' : 'desbalanceado'}
+        </div>
+
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+          modoSorteio === 'genero'
+            ? 'bg-[#1E8FD5]/15 text-[#1E8FD5] border border-[#1E8FD5]/30'
+            : 'bg-[#1BAF8A]/15 text-[#1BAF8A] border border-[#1BAF8A]/30'
+        }`}>
+          {modoSorteio === 'genero' ? <Venus size={12} /> : <Scale size={12} />}
+          {modoLabel}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { Player, NewPlayerPayload, ResultadoSorteio } from '../types';
+import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio } from '../types';
 import { sortearTimes } from './sorteio';
 
 const STORAGE_KEY = 'sorteie_players';
@@ -56,11 +56,12 @@ export async function clearPlayers(): Promise<void> {
 interface SorteioPayload {
   numTimes: number;
   jogadoresPorTime: number;
+  modoSorteio: ModoSorteio;
 }
 
 export async function sortear(payload: SorteioPayload): Promise<ResultadoSorteio> {
   const players = loadPlayers();
-  const resultado = sortearTimes(players, payload.numTimes, payload.jogadoresPorTime);
+  const resultado = sortearTimes(players, payload.numTimes, payload.jogadoresPorTime, payload.modoSorteio);
   return {
     sorteioId: Date.now(),
     criadoEm: new Date().toLocaleString('pt-BR'),
