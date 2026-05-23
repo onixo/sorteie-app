@@ -9,9 +9,9 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function buildTimes(bestTeams: Player[][]): { times: Time[]; nivelEquilibrado: boolean; generoEquilibrado: boolean } {
+function buildTimes(teams: Player[][]): { times: Time[]; nivelEquilibrado: boolean; generoEquilibrado: boolean } {
   const letras = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const times: Time[] = bestTeams.map((team, i) => ({
+  const times: Time[] = teams.map((team, i) => ({
     nome: `Time ${letras[i]}`,
     jogadores: team,
     totalNivel: team.reduce((s, p) => s + p.nivel, 0),
@@ -32,7 +32,7 @@ function buildTimes(bestTeams: Player[][]): { times: Time[]; nivelEquilibrado: b
   return { times, nivelEquilibrado, generoEquilibrado };
 }
 
-function scoreBalance(teams: Player[][], generoWeight: number): number {
+function scoreBalance(teams: Player[][]): number {
   const sums = teams.map(t => t.reduce((s, p) => s + p.nivel, 0));
   const avg = sums.reduce((a, b) => a + b, 0) / sums.length;
   const nivelVariance = sums.reduce((s, v) => s + Math.abs(v - avg), 0);
@@ -44,25 +44,79 @@ function scoreBalance(teams: Player[][], generoWeight: number): number {
     genPenalty += counts.reduce((s, v) => s + Math.abs(v - avgG), 0);
   });
 
-  return nivelVariance + genPenalty * generoWeight;
+  return nivelVariance + genPenalty * 5;
 }
 
-function sortearComScore(
+// Atribui cada jogador (já ordenado por nível desc) ao time com menor nível acumulado,
+// respeitando teto de gênero. Fallback sem teto se não houver vaga elegível.
+function greedyAssign(
+  sorted: Player[],
+  numTimes: number,
+  jogadoresPorTime: number,
+  maxF: number,
+  maxM: number,
+): Player[][] {
+  const teams: Player[][] = Array.from({ length: numTimes }, () => []);
+  const nivelSum = Array(numTimes).fill(0);
+  const femCount = Array(numTimes).fill(0);
+  const mascCount = Array(numTimes).fill(0);
+
+  for (const p of sorted) {
+    const gMax = p.genero === 'F' ? maxF : p.genero === 'M' ? maxM : jogadoresPorTime;
+    const gCnt = p.genero === 'F' ? femCount : p.genero === 'M' ? mascCount : null;
+
+    // Tenta respeitar teto de gênero
+    let bestTeam = -1;
+    let lowestNivel = Infinity;
+    for (let t = 0; t < numTimes; t++) {
+      const gc = gCnt ? gCnt[t] : 0;
+      if (teams[t].length < jogadoresPorTime && gc < gMax && nivelSum[t] < lowestNivel) {
+        bestTeam = t;
+        lowestNivel = nivelSum[t];
+      }
+    }
+
+    // Fallback: ignora teto de gênero se necessário
+    if (bestTeam === -1) {
+      lowestNivel = Infinity;
+      for (let t = 0; t < numTimes; t++) {
+        if (teams[t].length < jogadoresPorTime && nivelSum[t] < lowestNivel) {
+          bestTeam = t;
+          lowestNivel = nivelSum[t];
+        }
+      }
+    }
+
+    teams[bestTeam].push(p);
+    nivelSum[bestTeam] += p.nivel;
+    if (p.genero === 'F') femCount[bestTeam]++;
+    else if (p.genero === 'M') mascCount[bestTeam]++;
+  }
+
+  return teams;
+}
+
+// Modo Equilibrado: todos os jogadores ordenados por nível desc, distribuídos
+// greedy ao time mais fraco, com teto de gênero para distribuição igualitária.
+// Roda 200 vezes com tie-breaking aleatório e retorna o melhor resultado.
+function sortearEquilibrado(
   titulares: Player[],
   numTimes: number,
   jogadoresPorTime: number,
-  generoWeight: number,
 ): { bestTeams: Player[][]; bestScore: number } {
+  const nF = titulares.filter(p => p.genero === 'F').length;
+  const nM = titulares.filter(p => p.genero === 'M').length;
+  const maxF = Math.ceil(nF / numTimes);
+  const maxM = Math.ceil(nM / numTimes);
+
   let bestTeams: Player[][] | null = null;
   let bestScore = Infinity;
 
-  for (let i = 0; i < 1000; i++) {
-    const s = shuffle(titulares);
-    const teams = Array.from(
-      { length: numTimes },
-      (_, t) => s.slice(t * jogadoresPorTime, (t + 1) * jogadoresPorTime)
-    );
-    const score = scoreBalance(teams, generoWeight);
+  for (let i = 0; i < 200; i++) {
+    // Embaralha para aleatorizar empates de nível, depois ordena desc
+    const sorted = shuffle(titulares).sort((a, b) => b.nivel - a.nivel);
+    const teams = greedyAssign(sorted, numTimes, jogadoresPorTime, maxF, maxM);
+    const score = scoreBalance(teams);
     if (score < bestScore) {
       bestScore = score;
       bestTeams = teams;
@@ -71,6 +125,56 @@ function sortearComScore(
   }
 
   return { bestTeams: bestTeams!, bestScore };
+}
+
+// Modo Gênero: mulheres distribuídas primeiro (greedy por nível, garantindo
+// distribuição igualitária), depois demais jogadores (greedy por nível).
+// Gênero é garantido; nível é equilibrado dentro dessa restrição.
+function sortearGeneroGarantido(
+  titulares: Player[],
+  numTimes: number,
+  jogadoresPorTime: number,
+): Player[][] {
+  const byNivel = (arr: Player[]) =>
+    shuffle(arr).sort((a, b) => b.nivel - a.nivel);
+
+  const femininos = byNivel(titulares.filter(p => p.genero === 'F'));
+  const naoFemininos = byNivel(titulares.filter(p => p.genero !== 'F'));
+
+  const maxFPerTeam = Math.floor(femininos.length / numTimes) + 1;
+
+  const teams: Player[][] = Array.from({ length: numTimes }, () => []);
+  const nivelSum = Array(numTimes).fill(0);
+  const femCount = Array(numTimes).fill(0);
+
+  for (const p of femininos) {
+    let bestTeam = 0;
+    let lowestNivel = Infinity;
+    for (let t = 0; t < numTimes; t++) {
+      if (femCount[t] < maxFPerTeam && nivelSum[t] < lowestNivel) {
+        bestTeam = t;
+        lowestNivel = nivelSum[t];
+      }
+    }
+    teams[bestTeam].push(p);
+    nivelSum[bestTeam] += p.nivel;
+    femCount[bestTeam]++;
+  }
+
+  for (const p of naoFemininos) {
+    let bestTeam = 0;
+    let lowestNivel = Infinity;
+    for (let t = 0; t < numTimes; t++) {
+      if (teams[t].length < jogadoresPorTime && nivelSum[t] < lowestNivel) {
+        bestTeam = t;
+        lowestNivel = nivelSum[t];
+      }
+    }
+    teams[bestTeam].push(p);
+    nivelSum[bestTeam] += p.nivel;
+  }
+
+  return teams;
 }
 
 export function sortearTimes(
@@ -91,10 +195,15 @@ export function sortearTimes(
   const titulares = shuffled.slice(0, needed);
   const reservas = shuffled.slice(needed);
 
-  // 'equilibrado': nível peso 1, gênero peso 5 (balanceado)
-  // 'genero': nível peso 1, gênero peso 20 (fortemente prioriza gênero)
-  const generoWeight = modoSorteio === 'genero' ? 20 : 5;
-  const { bestTeams, bestScore } = sortearComScore(titulares, numTimes, jogadoresPorTime, generoWeight);
+  let bestTeams: Player[][];
+  let bestScore: number;
+
+  if (modoSorteio === 'genero') {
+    bestTeams = sortearGeneroGarantido(titulares, numTimes, jogadoresPorTime);
+    bestScore = scoreBalance(bestTeams);
+  } else {
+    ({ bestTeams, bestScore } = sortearEquilibrado(titulares, numTimes, jogadoresPorTime));
+  }
 
   const { times, nivelEquilibrado, generoEquilibrado } = buildTimes(bestTeams);
 
