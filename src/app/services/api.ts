@@ -59,8 +59,8 @@ interface SorteioPayload {
   modoSorteio: ModoSorteio;
 }
 
-export async function sortear(payload: SorteioPayload): Promise<ResultadoSorteio> {
-  const players = loadPlayers();
+export async function sortear(payload: SorteioPayload, extraPlayers: Player[] = []): Promise<ResultadoSorteio> {
+  const players = [...loadPlayers(), ...extraPlayers];
   const resultado = sortearTimes(players, payload.numTimes, payload.jogadoresPorTime, payload.modoSorteio);
   return {
     sorteioId: Date.now(),

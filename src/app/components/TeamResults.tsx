@@ -13,6 +13,8 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
   const modoSorteio = resultado.config.modoSorteio;
   const teamColors = ['#1BAF8A', '#1E8FD5', '#1565A8', '#4A90C4', '#1BAF8A', '#1E8FD5'];
 
+  const isVaga = (player: { id: number }) => player.id < 0;
+
   const getGenderIcon = (genero: 'M' | 'F' | 'O') => {
     if (genero === 'M') return '♂';
     if (genero === 'F') return '♀';
@@ -142,17 +144,29 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
             {/* Player List */}
             <div className="divide-y divide-[#1E8FD5]/10">
               {time.jogadores.map((player, pIdx) => (
-                <div key={pIdx} className="px-4 py-3 flex items-center justify-between">
+                <div
+                  key={pIdx}
+                  className={`px-4 py-3 flex items-center justify-between ${
+                    isVaga(player) ? 'opacity-60' : ''
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <span className="text-[#F0F4FF]">{player.nome}</span>
-                    <span className="text-[#4A90C4] text-sm">{getGenderIcon(player.genero)}</span>
+                    <span className={isVaga(player) ? 'text-[#4A90C4] italic' : 'text-[#F0F4FF]'}>
+                      {player.nome}
+                    </span>
+                    {isVaga(player)
+                      ? <span className="text-[10px] text-[#4A90C4] border border-[#4A90C4]/40 rounded px-1">LIVRE</span>
+                      : <span className="text-[#4A90C4] text-sm">{getGenderIcon(player.genero)}</span>
+                    }
                   </div>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((level) => (
                       <div
                         key={level}
                         className={`w-1.5 h-1.5 rounded-full ${
-                          level <= player.nivel ? 'bg-[#1BAF8A]' : 'bg-[#0D2847]'
+                          level <= player.nivel
+                            ? isVaga(player) ? 'bg-[#4A90C4]/60' : 'bg-[#1BAF8A]'
+                            : 'bg-[#0D2847]'
                         }`}
                       />
                     ))}

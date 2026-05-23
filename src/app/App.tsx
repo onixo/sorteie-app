@@ -18,6 +18,7 @@ export default function App() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [resultado, setResultado] = useState<ResultadoSorteio | null>(null);
+  const [vagasLivresCount, setVagasLivresCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -72,10 +73,20 @@ export default function App() {
     }
   };
 
-  const generateTeams = async (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio = 'equilibrado') => {
+  const generateTeams = async (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio = 'equilibrado', vagasLivres: number = 0) => {
     try {
       setError(null);
-      const res = await sortear({ numTimes, jogadoresPorTime, modoSorteio });
+      setVagasLivresCount(vagasLivres);
+      const nivelMedio = players.length > 0
+        ? Math.round(players.reduce((s, p) => s + p.nivel, 0) / players.length)
+        : 3;
+      const phantoms: Player[] = Array.from({ length: vagasLivres }, (_, i) => ({
+        id: -(i + 1),
+        nome: 'Vaga Livre',
+        genero: 'O' as const,
+        nivel: nivelMedio,
+      }));
+      const res = await sortear({ numTimes, jogadoresPorTime, modoSorteio }, phantoms);
       setResultado(res);
       setScreen('results');
     } catch (err) {
@@ -162,7 +173,8 @@ export default function App() {
             generateTeams(
               resultado.config.numTimes,
               resultado.config.jogadoresPorTime,
-              resultado.config.modoSorteio
+              resultado.config.modoSorteio,
+              vagasLivresCount
             );
           }}
         />

@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Minus, Plus, Shuffle, Scale, Venus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Minus, Plus, Shuffle, Scale, Venus, UserPlus } from 'lucide-react';
 import { Player, ModoSorteio } from '../types';
 import { HexBackground } from './HexBackground';
 
 interface SorteioConfigProps {
   players: Player[];
-  onGenerateTeams: (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio) => Promise<void>;
+  onGenerateTeams: (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio, vagasLivres?: number) => Promise<void>;
   onBack: () => void;
 }
 
@@ -14,15 +14,27 @@ export function SorteioConfig({ players, onGenerateTeams, onBack }: SorteioConfi
   const [jogadoresPorTime, setJogadoresPorTime] = useState(3);
   const [modoSorteio, setModoSorteio] = useState<ModoSorteio>('equilibrado');
   const [sorting, setSorting] = useState(false);
+  const [usarVagasLivres, setUsarVagasLivres] = useState(false);
 
   const totalRequired = numTimes * jogadoresPorTime;
-  const canGenerate = totalRequired <= players.length && totalRequired > 0;
+  const deficit = Math.max(0, totalRequired - players.length);
+  const podeAdicionarVagas = deficit > 0 && deficit <= numTimes;
+  const vagasLivres = usarVagasLivres && podeAdicionarVagas ? deficit : 0;
+  const nivelMedio = players.length > 0
+    ? Math.round(players.reduce((s, p) => s + p.nivel, 0) / players.length)
+    : 3;
+
+  useEffect(() => {
+    if (!podeAdicionarVagas) setUsarVagasLivres(false);
+  }, [podeAdicionarVagas]);
+
+  const canGenerate = (players.length + vagasLivres) >= totalRequired && totalRequired > 0;
 
   const handleGenerate = async () => {
     if (!canGenerate || sorting) return;
     try {
       setSorting(true);
-      await onGenerateTeams(numTimes, jogadoresPorTime, modoSorteio);
+      await onGenerateTeams(numTimes, jogadoresPorTime, modoSorteio, vagasLivres);
     } finally {
       setSorting(false);
     }
@@ -97,26 +109,59 @@ export function SorteioConfig({ players, onGenerateTeams, onBack }: SorteioConfi
             <div>
               <div className="text-[#4A90C4] text-sm mb-1">Total Necessário</div>
               <div className={`text-2xl font-light tabular-nums ${
-                totalRequired > players.length ? 'text-[#d4183d]' : 'text-[#1BAF8A]'
+                players.length + vagasLivres < totalRequired ? 'text-[#d4183d]' : 'text-[#1BAF8A]'
               }`}>
                 {totalRequired}
               </div>
             </div>
             <div>
               <div className="text-[#4A90C4] text-sm mb-1">Disponíveis</div>
-              <div className="text-2xl text-[#F0F4FF] font-light tabular-nums">{players.length}</div>
+              <div className="text-2xl text-[#F0F4FF] font-light tabular-nums">
+                {players.length}{vagasLivres > 0 && <span className="text-[#4A90C4] text-lg"> +{vagasLivres}</span>}
+              </div>
             </div>
           </div>
 
-          {totalRequired > players.length && (
+          {podeAdicionarVagas && !usarVagasLivres && (
+            <div className="mt-4 space-y-2">
+              <p className="text-center text-sm text-[#d4183d]">
+                Falta{deficit > 1 ? 'm' : ''} {deficit} jogador(es)
+              </p>
+              <button
+                onClick={() => setUsarVagasLivres(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-[#1E8FD5]/40 bg-[#1E8FD5]/10 text-[#1E8FD5] text-sm hover:bg-[#1E8FD5]/20 transition-colors"
+              >
+                <UserPlus size={15} />
+                Adicionar {deficit} Vaga{deficit > 1 ? 's' : ''} Livre{deficit > 1 ? 's' : ''} (nível médio {nivelMedio})
+              </button>
+            </div>
+          )}
+
+          {podeAdicionarVagas && usarVagasLivres && (
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-sm text-[#1BAF8A]">
+                  {deficit} Vaga{deficit > 1 ? 's' : ''} Livre{deficit > 1 ? 's' : ''} adicionada{deficit > 1 ? 's' : ''} (nível {nivelMedio})
+                </span>
+                <button
+                  onClick={() => setUsarVagasLivres(false)}
+                  className="text-xs text-[#4A90C4] hover:text-[#d4183d] transition-colors"
+                >
+                  remover
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!podeAdicionarVagas && totalRequired > players.length && (
             <div className="mt-4 text-center text-sm text-[#d4183d]">
               Jogadores insuficientes
             </div>
           )}
 
-          {totalRequired < players.length && (
+          {players.length + vagasLivres > totalRequired && (
             <div className="mt-4 text-center text-sm text-[#4A90C4]">
-              {players.length - totalRequired} jogador(es) ficarão como reserva
+              {players.length + vagasLivres - totalRequired} jogador(es) ficarão como reserva
             </div>
           )}
         </div>
