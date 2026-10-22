@@ -1,3 +1,15 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+/* Foco visível para quem navega por teclado ou leitor de tela. !important porque vários
+   campos usam outline-none para trocar só a cor da borda. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid #1BAF8A !important;
+  outline-offset: 2px;
+}

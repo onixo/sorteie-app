@@ -15,9 +15,12 @@ export function Toast({ message, type = 'success', action, onClose }: ToastProps
     return () => clearTimeout(timer);
   }, [onClose, action]);
 
+  // Fica acima das barras fixas de baixo (lista, config e resultado) e respeita a área segura do iPhone
   return (
     <div
-      className={`fixed bottom-40 left-4 right-4 max-w-md mx-auto z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-bottom duration-300 ${
+      role="status"
+      aria-live="polite"
+      className={`fixed bottom-[calc(11rem+env(safe-area-inset-bottom))] left-4 right-4 max-w-md mx-auto z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-bottom duration-300 ${
         type === 'success'
           ? 'bg-[#0E3B38] border border-[#1BAF8A]/50 text-[#3DD9B0]'
           : 'bg-[#3A1420] border border-[#d4183d]/50 text-[#ff6b86]'

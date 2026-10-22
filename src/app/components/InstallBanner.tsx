@@ -82,8 +82,8 @@ export function InstallBanner() {
           <Download size={18} className="text-[#1E8FD5]" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[#F0F4FF] text-sm leading-tight">Instalar o app</p>
-          <p className="text-[#4A90C4] text-xs mt-0.5 leading-tight">Abre em tela cheia.</p>
+          <p className="text-[#F0F4FF] text-sm leading-tight">Instale o Sorteie</p>
+          <p className="text-[#7FB2DC] text-xs mt-0.5 leading-tight">Fica na tela inicial do celular.</p>
         </div>
         {evento ? (
           <button
@@ -103,8 +103,8 @@ export function InstallBanner() {
         )}
         <button
           onClick={dispensar}
-          aria-label="Dispensar aviso de instalação"
-          className="min-w-11 min-h-11 flex items-center justify-center text-[#4A90C4]/70 hover:text-[#F0F4FF] shrink-0 transition-colors"
+          aria-label="Fechar aviso de instalação"
+          className="min-w-11 min-h-11 flex items-center justify-center text-[#7FB2DC] hover:text-[#F0F4FF] shrink-0 transition-colors"
         >
           <X size={16} />
         </button>
@@ -112,7 +112,7 @@ export function InstallBanner() {
 
       {/* Passo a passo para iPhone */}
       {!evento && mostrarPassos && (
-        <ol className="px-4 pb-3 pt-1 space-y-1.5 text-xs text-[#4A90C4] list-decimal list-inside border-t border-[#1E8FD5]/15">
+        <ol className="px-4 pb-3 pt-1 space-y-1.5 text-xs text-[#7FB2DC] list-decimal list-inside border-t border-[#1E8FD5]/15">
           <li className="pt-2">
             Toque em <Share size={12} className="inline -mt-0.5 text-[#1E8FD5]" /> <span className="text-[#F0F4FF]">Compartilhar</span>, na barra do Safari.
           </li>

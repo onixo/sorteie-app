@@ -3,18 +3,68 @@ import { Minus, Plus, Shuffle, Scale, Venus, UserPlus } from 'lucide-react';
 import { Player, ModoSorteio, ModoClassificacao } from '../types';
 import { ehLevantador } from '../habilidades';
 import { HexBackground } from './HexBackground';
+import { BotaoVoltar } from './BotaoVoltar';
 
 interface SorteioConfigProps {
   players: Player[];
   modo: ModoClassificacao | null;
-  onGenerateTeams: (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio, vagasLivres?: number) => Promise<void>;
+  inicial?: { numTimes: number; jogadoresPorTime: number; modoSorteio: ModoSorteio }; // última escolha
+  onGenerateTeams: (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio, vagasLivres?: number) => Promise<unknown>;
   onBack: () => void;
 }
 
-export function SorteioConfig({ players, modo, onGenerateTeams, onBack }: SorteioConfigProps) {
-  const [numTimes, setNumTimes] = useState(2);
-  const [jogadoresPorTime, setJogadoresPorTime] = useState(3);
-  const [modoSorteio, setModoSorteio] = useState<ModoSorteio>('equilibrado');
+const MAX_TIMES = 6;
+const MAX_POR_TIME = 12;
+
+const plural = (n: number, singular: string, pluralForma: string) => (n === 1 ? singular : pluralForma);
+
+interface StepperProps {
+  titulo: string;
+  valor: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+  menosLabel: string;
+  maisLabel: string;
+}
+
+// Escolha de um número com - e +; os botões têm nome para leitor de tela e travam nos limites
+function Stepper({ titulo, valor, min, max, onChange, menosLabel, maisLabel }: StepperProps) {
+  return (
+    <div className="bg-[#0F2035] rounded-xl p-6 border border-[#1E8FD5]/20">
+      <p className="text-[#7FB2DC] text-sm mb-4">{titulo}</p>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => onChange(Math.max(min, valor - 1))}
+          disabled={valor <= min}
+          aria-label={menosLabel}
+          className="w-12 h-12 bg-[#162844] hover:bg-[#1E8FD5]/20 disabled:opacity-40 rounded-lg flex items-center justify-center text-[#1E8FD5] transition-colors"
+        >
+          <Minus size={20} />
+        </button>
+        <div className="flex-1 text-center">
+          <div className="text-4xl text-[#F0F4FF] font-light tabular-nums" aria-live="polite">{valor}</div>
+        </div>
+        <button
+          onClick={() => onChange(Math.min(max, valor + 1))}
+          disabled={valor >= max}
+          aria-label={maisLabel}
+          className="w-12 h-12 bg-[#162844] hover:bg-[#1E8FD5]/20 disabled:opacity-40 rounded-lg flex items-center justify-center text-[#1E8FD5] transition-colors"
+        >
+          <Plus size={20} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function SorteioConfig({ players, modo, inicial, onGenerateTeams, onBack }: SorteioConfigProps) {
+  // Sugestão inicial: 2 times com o máximo de jogadores que a lista permite
+  const [numTimes, setNumTimes] = useState(inicial?.numTimes ?? 2);
+  const [jogadoresPorTime, setJogadoresPorTime] = useState(
+    inicial?.jogadoresPorTime ?? Math.min(MAX_POR_TIME, Math.max(1, Math.floor(players.length / 2))),
+  );
+  const [modoSorteio, setModoSorteio] = useState<ModoSorteio>(inicial?.modoSorteio ?? 'equilibrado');
   const [sorting, setSorting] = useState(false);
   const [usarVagasLivres, setUsarVagasLivres] = useState(false);
 
@@ -22,6 +72,7 @@ export function SorteioConfig({ players, modo, onGenerateTeams, onBack }: Sortei
   const deficit = Math.max(0, totalRequired - players.length);
   const podeAdicionarVagas = deficit > 0 && deficit <= numTimes;
   const vagasLivres = usarVagasLivres && podeAdicionarVagas ? deficit : 0;
+  const sobram = players.length + vagasLivres - totalRequired;
   const nivelMedio = players.length > 0
     ? Math.round(players.reduce((s, p) => s + p.nivel, 0) / players.length)
     : 3;
@@ -32,7 +83,7 @@ export function SorteioConfig({ players, modo, onGenerateTeams, onBack }: Sortei
 
   const canGenerate = (players.length + vagasLivres) >= totalRequired && totalRequired > 0;
 
-  // Regra do modo detalhado: um levantador por time
+  // Regra do modo detalhado: espalhar quem levanta bem (Levantamento 3 ou mais) entre os times
   const levantadores = players.filter(ehLevantador).length;
 
   const handleGenerate = async () => {
@@ -46,99 +97,73 @@ export function SorteioConfig({ players, modo, onGenerateTeams, onBack }: Sortei
   };
 
   return (
-    <div className="min-h-screen bg-[#0A1628]">
+    <div className="min-h-screen bg-[#0A1628] pb-40">
       <HexBackground />
 
       {/* Header */}
-      <div className="relative px-4 pt-6 pb-4 border-b border-[#1E8FD5]/20">
-        <button
-          onClick={onBack}
-          className="text-[#4A90C4] hover:text-[#1E8FD5] mb-4 transition-colors flex items-center gap-2"
-        >
-          ← Voltar
-        </button>
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Bull Analytics" className="w-10 h-10 object-contain" />
-          <h1 className="text-[#F0F4FF]">Configurar Sorteio</h1>
-        </div>
+      <div className="relative px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 border-b border-[#1E8FD5]/20">
+        <BotaoVoltar onClick={onBack} />
+        <h1 className="text-[#F0F4FF] text-xl mt-1">Configurar sorteio</h1>
       </div>
 
-      <div className="relative px-4 pt-8 pb-24 space-y-8">
-        {/* Number of Teams */}
-        <div className="bg-[#0F2035] rounded-xl p-6 border border-[#1E8FD5]/20">
-          <label className="block text-[#4A90C4] text-sm mb-4">Nº de Times</label>
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setNumTimes(Math.max(2, numTimes - 1))}
-              className="w-12 h-12 bg-[#162844] hover:bg-[#1E8FD5]/20 rounded-lg flex items-center justify-center text-[#1E8FD5] transition-colors"
-            >
-              <Minus size={20} />
-            </button>
-            <div className="flex-1 text-center">
-              <div className="text-4xl text-[#F0F4FF] font-light tabular-nums">{numTimes}</div>
-            </div>
-            <button
-              onClick={() => setNumTimes(Math.min(6, numTimes + 1))}
-              className="w-12 h-12 bg-[#162844] hover:bg-[#1E8FD5]/20 rounded-lg flex items-center justify-center text-[#1E8FD5] transition-colors"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
-        </div>
+      <div className="relative px-4 pt-6 space-y-6">
+        <Stepper
+          titulo="Quantos times?"
+          valor={numTimes}
+          min={2}
+          max={MAX_TIMES}
+          onChange={setNumTimes}
+          menosLabel="Um time a menos"
+          maisLabel="Um time a mais"
+        />
 
-        {/* Players Per Team */}
-        <div className="bg-[#0F2035] rounded-xl p-6 border border-[#1E8FD5]/20">
-          <label className="block text-[#4A90C4] text-sm mb-4">Jogadores por Time</label>
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setJogadoresPorTime(Math.max(1, jogadoresPorTime - 1))}
-              className="w-12 h-12 bg-[#162844] hover:bg-[#1E8FD5]/20 rounded-lg flex items-center justify-center text-[#1E8FD5] transition-colors"
-            >
-              <Minus size={20} />
-            </button>
-            <div className="flex-1 text-center">
-              <div className="text-4xl text-[#F0F4FF] font-light tabular-nums">{jogadoresPorTime}</div>
-            </div>
-            <button
-              onClick={() => setJogadoresPorTime(Math.min(12, jogadoresPorTime + 1))}
-              className="w-12 h-12 bg-[#162844] hover:bg-[#1E8FD5]/20 rounded-lg flex items-center justify-center text-[#1E8FD5] transition-colors"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
-        </div>
+        <Stepper
+          titulo="Quantos jogadores por time?"
+          valor={jogadoresPorTime}
+          min={1}
+          max={MAX_POR_TIME}
+          onChange={setJogadoresPorTime}
+          menosLabel="Um jogador a menos por time"
+          maisLabel="Um jogador a mais por time"
+        />
 
-        {/* Summary Card */}
-        <div className="bg-[#162844] rounded-xl p-6 border border-[#1E8FD5]/30">
+        {/* Resumo */}
+        <div className="bg-[#162844] rounded-xl p-6 border border-[#1E8FD5]/30" aria-live="polite">
+          <p className="text-center text-[#F0F4FF] mb-4">
+            {numTimes} times de {jogadoresPorTime} = <span className="font-medium">{totalRequired} jogadores</span>
+          </p>
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
-              <div className="text-[#4A90C4] text-sm mb-1">Total Necessário</div>
+              <div className="text-[#7FB2DC] text-sm mb-1">Jogadores necessários</div>
               <div className={`text-2xl font-light tabular-nums ${
-                players.length + vagasLivres < totalRequired ? 'text-[#d4183d]' : 'text-[#1BAF8A]'
+                players.length + vagasLivres < totalRequired ? 'text-[#ff6b86]' : 'text-[#1BAF8A]'
               }`}>
                 {totalRequired}
               </div>
             </div>
             <div>
-              <div className="text-[#4A90C4] text-sm mb-1">Disponíveis</div>
+              <div className="text-[#7FB2DC] text-sm mb-1">Na lista</div>
               <div className="text-2xl text-[#F0F4FF] font-light tabular-nums">
-                {players.length}{vagasLivres > 0 && <span className="text-[#4A90C4] text-lg"> +{vagasLivres}</span>}
+                {players.length}{vagasLivres > 0 && <span className="text-[#7FB2DC] text-lg"> +{vagasLivres}</span>}
               </div>
             </div>
           </div>
 
           {podeAdicionarVagas && !usarVagasLivres && (
             <div className="mt-4 space-y-2">
-              <p className="text-center text-sm text-[#d4183d]">
-                Falta{deficit > 1 ? 'm' : ''} {deficit} jogador(es)
+              <p className="text-center text-sm text-[#ff6b86]">
+                {plural(deficit, 'Falta', 'Faltam')} {deficit} {plural(deficit, 'jogador', 'jogadores')}
               </p>
               <button
                 onClick={() => setUsarVagasLivres(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-[#1E8FD5]/40 bg-[#1E8FD5]/10 text-[#1E8FD5] text-sm hover:bg-[#1E8FD5]/20 transition-colors"
+                className="w-full flex items-center justify-center gap-2 min-h-11 rounded-lg border border-[#1E8FD5]/40 bg-[#1E8FD5]/10 text-[#1E8FD5] text-sm hover:bg-[#1E8FD5]/20 transition-colors"
               >
                 <UserPlus size={15} />
-                Adicionar {deficit} Vaga{deficit > 1 ? 's' : ''} Livre{deficit > 1 ? 's' : ''} (nível médio {nivelMedio})
+                Completar com {deficit} {plural(deficit, 'vaga aberta', 'vagas abertas')} (nível médio {nivelMedio})
               </button>
+              <p className="text-center text-xs text-[#7FB2DC]">
+                {plural(deficit, 'A vaga entra', 'As vagas entram')} no sorteio como {plural(deficit, 'um jogador', 'jogadores')} de nível médio, para o time ficar completo.
+              </p>
             </div>
           )}
 
@@ -146,32 +171,32 @@ export function SorteioConfig({ players, modo, onGenerateTeams, onBack }: Sortei
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between px-1">
                 <span className="text-sm text-[#1BAF8A]">
-                  {deficit} Vaga{deficit > 1 ? 's' : ''} Livre{deficit > 1 ? 's' : ''} adicionada{deficit > 1 ? 's' : ''} (nível {nivelMedio})
+                  {deficit} {plural(deficit, 'vaga aberta adicionada', 'vagas abertas adicionadas')} (nível {nivelMedio})
                 </span>
                 <button
                   onClick={() => setUsarVagasLivres(false)}
-                  className="text-xs text-[#4A90C4] hover:text-[#d4183d] transition-colors"
+                  className="text-sm text-[#7FB2DC] hover:text-[#ff6b86] transition-colors min-h-11 px-2 -my-2"
                 >
-                  remover
+                  Tirar
                 </button>
               </div>
             </div>
           )}
 
           {!podeAdicionarVagas && totalRequired > players.length && (
-            <div className="mt-4 text-center text-sm text-[#d4183d]">
-              Jogadores insuficientes
+            <div className="mt-4 text-center text-sm text-[#ff6b86]">
+              {plural(deficit, 'Falta', 'Faltam')} {deficit} {plural(deficit, 'jogador', 'jogadores')}. Adicione mais gente ou reduza o tamanho dos times.
             </div>
           )}
 
-          {players.length + vagasLivres > totalRequired && (
-            <div className="mt-4 text-center text-sm text-[#4A90C4]">
-              {players.length + vagasLivres - totalRequired} jogador(es) ficarão como reserva
+          {sobram > 0 && (
+            <div className="mt-4 text-center text-sm text-[#7FB2DC]">
+              {sobram} {plural(sobram, 'jogador fica', 'jogadores ficam')} de reserva
             </div>
           )}
         </div>
 
-        {/* Distribuição de quem tem boa nota em Levantamento (modo detalhado). Tentativa, sem posição fixa. */}
+        {/* Quem levanta bem (avaliação detalhada). É só uma tentativa, não há posição fixa. */}
         {modo === 'detalhado' && (
           <div className={`rounded-xl px-4 py-3 border text-sm ${
             levantadores >= numTimes
@@ -179,16 +204,18 @@ export function SorteioConfig({ players, modo, onGenerateTeams, onBack }: Sortei
               : 'bg-[#E0A526]/10 border-[#E0A526]/30 text-[#E0A526]'
           }`}>
             {levantadores >= numTimes
-              ? `Tenta espalhar entre os times quem tem Levantamento 3 ou mais (${levantadores} na lista).`
-              : `Só ${levantadores} jogador${levantadores !== 1 ? 'es' : ''} com Levantamento 3 ou mais para ${numTimes} times. Sem o suficiente, o sorteio segue só pelas habilidades.`}
+              ? `Vamos tentar separar quem levanta bem (nota 3 ou mais em Levantamento) em times diferentes. Na lista: ${levantadores}.`
+              : `Só ${levantadores} ${plural(levantadores, 'jogador tem', 'jogadores têm')} nota 3 ou mais em Levantamento, para ${numTimes} times. Sem o suficiente, os times saem só pelas notas.`}
           </div>
         )}
 
-        {/* Modo de Sorteio */}
+        {/* Tipo de sorteio */}
         <div className="bg-[#0F2035] rounded-xl p-6 border border-[#1E8FD5]/20">
-          <label className="block text-[#4A90C4] text-sm mb-4">Modo de Sorteio</label>
-          <div className="flex flex-col gap-3">
+          <p id="rotulo-tipo-sorteio" className="text-[#7FB2DC] text-sm mb-4">Tipo de sorteio</p>
+          <div role="radiogroup" aria-labelledby="rotulo-tipo-sorteio" className="flex flex-col gap-3">
             <button
+              role="radio"
+              aria-checked={modoSorteio === 'equilibrado'}
               onClick={() => setModoSorteio('equilibrado')}
               className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                 modoSorteio === 'equilibrado'
@@ -197,17 +224,19 @@ export function SorteioConfig({ players, modo, onGenerateTeams, onBack }: Sortei
               }`}
             >
               <div className="flex items-center gap-3 mb-1">
-                <Scale size={16} className={modoSorteio === 'equilibrado' ? 'text-[#1BAF8A]' : 'text-[#4A90C4]'} />
+                <Scale size={16} className={modoSorteio === 'equilibrado' ? 'text-[#1BAF8A]' : 'text-[#7FB2DC]'} aria-hidden="true" />
                 <span className={`font-medium text-sm ${modoSorteio === 'equilibrado' ? 'text-[#1BAF8A]' : 'text-[#F0F4FF]'}`}>
                   Equilibrado
                 </span>
               </div>
-              <p className="text-xs text-[#4A90C4] leading-relaxed">
-                Tenta balancear nível e gênero ao mesmo tempo. Pode haver pequena variação nos dois.
+              <p className="text-xs text-[#7FB2DC] leading-relaxed">
+                Busca times parelhos em nível e em gênero. Pode sobrar uma pequena diferença nos dois.
               </p>
             </button>
 
             <button
+              role="radio"
+              aria-checked={modoSorteio === 'genero'}
               onClick={() => setModoSorteio('genero')}
               className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                 modoSorteio === 'genero'
@@ -216,28 +245,32 @@ export function SorteioConfig({ players, modo, onGenerateTeams, onBack }: Sortei
               }`}
             >
               <div className="flex items-center gap-3 mb-1">
-                <Venus size={16} className={modoSorteio === 'genero' ? 'text-[#1E8FD5]' : 'text-[#4A90C4]'} />
+                <Venus size={16} className={modoSorteio === 'genero' ? 'text-[#1E8FD5]' : 'text-[#7FB2DC]'} aria-hidden="true" />
                 <span className={`font-medium text-sm ${modoSorteio === 'genero' ? 'text-[#1E8FD5]' : 'text-[#F0F4FF]'}`}>
-                  Prioridade de Gênero
+                  Dividir por gênero
                 </span>
               </div>
-              <p className="text-xs text-[#4A90C4] leading-relaxed">
-                Garante a distribuição mais igualitária possível de mulheres e homens entre os times, mesmo que o nível fique desequilibrado.
+              <p className="text-xs text-[#7FB2DC] leading-relaxed">
+                Divide mulheres e homens do jeito mais igual possível entre os times, mesmo que o nível fique desigual.
               </p>
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Generate Button */}
-        <button
-          id="btn-sortear"
-          onClick={handleGenerate}
-          disabled={!canGenerate || sorting}
-          className="w-full py-5 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#4A90C4] text-[#0A1628] font-medium rounded-xl transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-[#1BAF8A]/20 disabled:shadow-none"
-        >
-          <Shuffle size={20} className={sorting ? 'animate-spin' : ''} />
-          {sorting ? 'Sorteando...' : 'Sortear Times'}
-        </button>
+      {/* Barra fixa: o botão de sortear fica sempre à vista, sem precisar rolar */}
+      <div className="fixed inset-x-0 bottom-0 z-30 bg-[#0A1628]/95 backdrop-blur border-t border-[#1E8FD5]/20">
+        <div className="max-w-md mx-auto px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <button
+            id="btn-sortear"
+            onClick={handleGenerate}
+            disabled={!canGenerate || sorting}
+            className="w-full min-h-14 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#7FB2DC] text-[#0A1628] font-semibold rounded-xl transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-[#1BAF8A]/20 disabled:shadow-none"
+          >
+            <Shuffle size={20} className={sorting ? 'animate-spin' : ''} aria-hidden="true" />
+            {sorting ? 'Sorteando…' : 'Sortear agora'}
+          </button>
+        </div>
       </div>
     </div>
   );

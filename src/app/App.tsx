@@ -10,9 +10,39 @@ import { InstallBanner } from './components/InstallBanner';
 import { TriangleAlert, X } from 'lucide-react';
 import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ElencoItem } from './types';
 import { getPlayers, createPlayer, deletePlayer, restorePlayer, updatePlayer, clearPlayers, getElenco, clearElenco, sortear } from './services/api';
+import { ErroSorteio } from './services/sorteio';
 import { modoDaLista } from './habilidades';
 
 type Screen = 'list' | 'config' | 'results';
+
+interface UltimoSorteio {
+  resultado: ResultadoSorteio;
+  vagas: number;
+}
+
+const CHAVE_ULTIMO_SORTEIO = 'sorteie_ultimo_sorteio';
+
+function lerUltimoSorteio(): UltimoSorteio | null {
+  try {
+    const dados = JSON.parse(localStorage.getItem(CHAVE_ULTIMO_SORTEIO) ?? 'null');
+    return dados && Array.isArray(dados.resultado?.times) ? dados : null;
+  } catch {
+    return null;
+  }
+}
+
+function gravarUltimoSorteio(ultimo: UltimoSorteio): void {
+  try {
+    localStorage.setItem(CHAVE_ULTIMO_SORTEIO, JSON.stringify(ultimo));
+  } catch {
+    // sem armazenamento: o resultado continua na tela, só não fica guardado
+  }
+}
+
+// Só mensagens escritas para o usuário (ErroSorteio) aparecem como estão; o resto vira o texto padrão.
+const mensagemDeErro = (err: unknown, padrao: string) => (err instanceof ErroSorteio ? err.message : padrao);
+
+const plural = (n: number, singular: string, pluralForma: string) => (n === 1 ? singular : pluralForma);
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('list');
@@ -23,10 +53,11 @@ export default function App() {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [resultado, setResultado] = useState<ResultadoSorteio | null>(null);
   const [vagasLivresCount, setVagasLivresCount] = useState(0);
+  const [ultimoSorteio, setUltimoSorteio] = useState<UltimoSorteio | null>(lerUltimoSorteio);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; action?: { label: string; onClick: () => void } } | null>(null);
 
-  // Modo de classificação da lista (definido pelo primeiro jogador; null = lista vazia)
+  // Modo de avaliação da lista (definido pelo primeiro jogador; null = lista vazia)
   const modoLista = modoDaLista(players);
 
   const showToast = useCallback((
@@ -47,14 +78,26 @@ export default function App() {
     refreshElenco();
   }, [refreshElenco]);
 
+  // Cada tela começa no topo (antes herdava a rolagem da anterior)
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen]);
+
+  // O aviso de erro some sozinho
+  useEffect(() => {
+    if (!error) return;
+    const id = setTimeout(() => setError(null), 8000);
+    return () => clearTimeout(id);
+  }, [error]);
+
   const addPlayer = async (payload: NewPlayerPayload) => {
     try {
       const newPlayer = await createPlayer(payload);
       setPlayers(prev => [...prev, newPlayer]);
       refreshElenco();
-      showToast(`${newPlayer.nome} adicionado!`);
+      showToast(`${newPlayer.nome} entrou na lista!`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao adicionar jogador.');
+      setError(mensagemDeErro(err, 'Não deu para adicionar o jogador. Tente de novo.'));
       throw err;
     }
   };
@@ -67,9 +110,9 @@ export default function App() {
       for (const payload of payloads) {
         created.push(await createPlayer(payload));
       }
-      showToast(`${created.length} jogador${created.length !== 1 ? 'es' : ''} adicionado${created.length !== 1 ? 's' : ''}!`);
+      showToast(`${created.length} ${plural(created.length, 'entrou', 'entraram')} na lista!`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao adicionar jogadores.');
+      setError(mensagemDeErro(err, 'Não deu para adicionar os jogadores. Tente de novo.'));
     }
     if (created.length > 0) {
       setPlayers(prev => [...prev, ...created]);
@@ -83,19 +126,19 @@ export default function App() {
       const player = players.find(p => p.id === id);
       await deletePlayer(id);
       setPlayers(prev => prev.filter(p => p.id !== id));
-      showToast(`${player?.nome ?? 'Jogador'} removido.`, 'success', player ? {
+      showToast(player ? `${player.nome} saiu da lista.` : 'Jogador removido da lista.', 'success', player ? {
         label: 'Desfazer',
         onClick: async () => {
           try {
             await restorePlayer(player);
             setPlayers(prev => [...prev.filter(p => p.id !== player.id), player].sort((a, b) => a.id - b.id));
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erro ao desfazer.');
+            setError(mensagemDeErro(err, 'Não deu para desfazer. Adicione o jogador de novo.'));
           }
         },
       } : undefined);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao remover jogador.');
+      setError(mensagemDeErro(err, 'Não deu para tirar o jogador da lista. Tente de novo.'));
     }
   };
 
@@ -104,45 +147,56 @@ export default function App() {
       const updated = await updatePlayer(id, payload);
       setPlayers(prev => prev.map(p => p.id === id ? updated : p));
       refreshElenco();
-      showToast(`${updated.nome} atualizado!`);
+      showToast(`Dados de ${updated.nome} atualizados.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao editar jogador.');
+      setError(mensagemDeErro(err, 'Não deu para salvar as mudanças. Tente de novo.'));
       throw err;
     }
   };
 
-  const handleClearPlayers = async () => {
+  // Limpa a lista inteira, com Desfazer (reinsere os mesmos jogadores, com os mesmos ids)
+  const limparLista = async (mensagem: string) => {
+    const copia = players;
     try {
       await clearPlayers();
       setPlayers([]);
-      showToast('Lista limpa.');
+      showToast(mensagem, 'success', copia.length > 0 ? {
+        label: 'Desfazer',
+        onClick: async () => {
+          try {
+            for (const p of copia) await restorePlayer(p);
+            setPlayers(copia);
+          } catch (err) {
+            setError(mensagemDeErro(err, 'Não deu para desfazer. Adicione os jogadores de novo.'));
+          }
+        },
+      } : undefined);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao limpar lista.');
+      setError(mensagemDeErro(err, 'Não deu para limpar a lista. Tente de novo.'));
     }
   };
+
+  const handleClearPlayers = () => limparLista('Lista limpa. As notas salvas continuam guardadas.');
+
+  // Mudar a avaliação exige lista vazia: limpa e deixa o tipo ser escolhido de novo
+  const handleChangeMode = () => limparLista('Lista limpa. Escolha o tipo de avaliação ao adicionar jogadores.');
 
   const handleForgetElenco = async () => {
     try {
       await clearElenco();
       setElenco([]);
-      showToast('Elenco esquecido.');
+      showToast('Notas salvas apagadas.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao esquecer o elenco.');
+      setError(mensagemDeErro(err, 'Não deu para apagar as notas salvas. Tente de novo.'));
     }
   };
 
-  // Trocar o modo de classificação exige lista vazia: limpa e deixa o modo ser escolhido de novo
-  const handleChangeMode = async () => {
-    try {
-      await clearPlayers();
-      setPlayers([]);
-      showToast('Lista limpa. Escolha o modo ao importar ou adicionar.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao limpar lista.');
-    }
-  };
-
-  const generateTeams = async (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio = 'equilibrado', vagasLivres: number = 0) => {
+  const generateTeams = async (
+    numTimes: number,
+    jogadoresPorTime: number,
+    modoSorteio: ModoSorteio = 'equilibrado',
+    vagasLivres: number = 0,
+  ): Promise<ResultadoSorteio | null> => {
     try {
       setError(null);
       setVagasLivresCount(vagasLivres);
@@ -151,29 +205,67 @@ export default function App() {
         : 3;
       const phantoms: Player[] = Array.from({ length: vagasLivres }, (_, i) => ({
         id: -(i + 1),
-        nome: 'Vaga Livre',
+        nome: 'Vaga aberta',
         genero: 'O' as const,
         nivel: nivelMedio,
       }));
       const res = await sortear({ numTimes, jogadoresPorTime, modoSorteio }, phantoms);
+      const ultimo = { resultado: res, vagas: vagasLivres };
       setResultado(res);
+      setUltimoSorteio(ultimo);
+      gravarUltimoSorteio(ultimo);
       setScreen('results');
+      return res;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao sortear times.');
+      setError(mensagemDeErro(err, 'Não deu para sortear. Tente de novo.'));
+      return null;
     }
+  };
+
+  // Sortear de novo guarda o resultado anterior para o Desfazer
+  const refazerSorteio = async () => {
+    if (!resultado) return;
+    const anterior = { resultado, vagas: vagasLivresCount };
+    const novo = await generateTeams(
+      resultado.config.numTimes,
+      resultado.config.jogadoresPorTime,
+      resultado.config.modoSorteio,
+      vagasLivresCount,
+    );
+    if (novo) {
+      showToast('Novo sorteio feito.', 'success', {
+        label: 'Desfazer',
+        onClick: () => {
+          setResultado(anterior.resultado);
+          setVagasLivresCount(anterior.vagas);
+          setUltimoSorteio(anterior);
+          gravarUltimoSorteio(anterior);
+        },
+      });
+    }
+  };
+
+  const verUltimoSorteio = () => {
+    if (!ultimoSorteio) return;
+    setResultado(ultimoSorteio.resultado);
+    setVagasLivresCount(ultimoSorteio.vagas);
+    setScreen('results');
   };
 
   return (
     <div className="max-w-md mx-auto size-full bg-[#0A1628]">
-      {/* Banner de erro global */}
+      {/* Aviso de erro (some sozinho em 8 s) */}
       {error && (
-        <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto bg-[#d4183d]/10 border border-[#d4183d]/40 text-[#d4183d] text-sm rounded-xl px-4 py-3 flex items-start gap-3">
+        <div
+          role="alert"
+          className="fixed top-[max(1rem,env(safe-area-inset-top))] left-4 right-4 z-50 max-w-md mx-auto bg-[#3A1420] border border-[#d4183d]/50 text-[#ff6b86] text-sm rounded-xl px-4 py-3 flex items-start gap-3 shadow-lg"
+        >
           <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span className="flex-1">{error}</span>
           <button
             onClick={() => setError(null)}
-            aria-label="Fechar aviso de erro"
-            className="text-[#d4183d]/60 hover:text-[#d4183d] transition-colors shrink-0 min-w-11 min-h-11 -m-3 flex items-center justify-center"
+            aria-label="Fechar aviso"
+            className="text-[#ff6b86] hover:text-[#F0F4FF] transition-colors shrink-0 min-w-11 min-h-11 -m-3 flex items-center justify-center"
           >
             <X size={16} />
           </button>
@@ -205,6 +297,9 @@ export default function App() {
             onChangeMode={handleChangeMode}
             elencoCount={elenco.length}
             onForgetElenco={handleForgetElenco}
+            onSortear={() => setScreen('config')}
+            ultimoSorteio={ultimoSorteio ? ultimoSorteio.resultado.criadoEm.replace(/:\d{2}$/, '') : null}
+            onVerUltimoSorteio={verUltimoSorteio}
           />
           <AddPlayerSheet
             isOpen={isAddPlayerOpen}
@@ -226,39 +321,30 @@ export default function App() {
             onClose={() => setEditingPlayer(null)}
             onUpdate={handleUpdatePlayer}
           />
-          {players.length >= 2 && (
-            <button
-              onClick={() => setScreen('config')}
-              className="fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 bg-[#1E8FD5] hover:bg-[#1E8FD5]/90 text-[#F0F4FF] font-medium rounded-xl transition-all shadow-lg"
-            >
-              Configurar Sorteio
-            </button>
-          )}
         </>
       )}
 
+      {/* Sem animate-in nos wrappers abaixo: o transform da animação desloca as barras fixed de baixo */}
       {screen === 'config' && (
-        <SorteioConfig
-          players={players}
-          modo={modoLista}
-          onGenerateTeams={generateTeams}
-          onBack={() => setScreen('list')}
-        />
+        <div>
+          <SorteioConfig
+            players={players}
+            modo={modoLista}
+            inicial={resultado?.config}
+            onGenerateTeams={generateTeams}
+            onBack={() => setScreen('list')}
+          />
+        </div>
       )}
 
       {screen === 'results' && resultado && (
-        <TeamResults
-          resultado={resultado}
-          onBack={() => setScreen('list')}
-          onShuffle={() => {
-            generateTeams(
-              resultado.config.numTimes,
-              resultado.config.jogadoresPorTime,
-              resultado.config.modoSorteio,
-              vagasLivresCount
-            );
-          }}
-        />
+        <div key={resultado.sorteioId}>
+          <TeamResults
+            resultado={resultado}
+            onBack={() => setScreen('config')}
+            onShuffle={refazerSorteio}
+          />
+        </div>
       )}
     </div>
   );

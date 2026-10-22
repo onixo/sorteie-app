@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Loader2, ClipboardList, ChevronLeft, ChevronDown, Clipboard } from 'lucide-react';
 import { NewPlayerPayload, Habilidades, ModoClassificacao, ElencoItem } from '../types';
-import { HABILIDADES, habilidadesCompletas, calcularNivel } from '../habilidades';
+import { HABILIDADES, NIVEL_LABELS, habilidadesCompletas, calcularNivel } from '../habilidades';
 import { normalizarNome, indexarElenco } from '../elenco';
 import { HabilidadesInput } from './HabilidadesInput';
-import { GeneroIcon } from './GeneroIcon';
+import { SeletorGenero } from './SeletorGenero';
+import { SeletorNivel } from './SeletorNivel';
 import { EscolhaModoClassificacao } from './EscolhaModoClassificacao';
 
 interface ImportPlayersSheetProps {
@@ -33,7 +34,7 @@ const PAUSA_AVANCO_MS = 450;
 // Tempo que o aviso "Desfazer" fica na tela após remover um jogador
 const DESFAZER_MS = 6000;
 
-const SKILL_LABELS = ['Iniciante', 'Praticante', 'Intermediário', 'Avançado', 'Expert'];
+const plural = (n: number, singular: string, pluralForma: string) => (n === 1 ? singular : pluralForma);
 
 // Prefixo de numeração: "1.", "1)", "1 -", "1:", "1 " e "1️⃣" (emoji keycap do WhatsApp)
 const PREFIXO_NUMERADO = /^\d+[\uFE0F\u20E3]*(?:\s*[.)\-:]\s*|\s+)/;
@@ -80,7 +81,8 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
   const avancoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const removidoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ignoradas, setIgnoradas] = useState(0);
-  const [removido, setRemovido] = useState<{ player: PendingPlayer; index: number } | null>(null);
+  // Último ajuste que ainda pode ser desfeito (tirar um nome ou tirar os repetidos)
+  const [desfazer, setDesfazer] = useState<{ mensagem: string; restaurar: () => void } | null>(null);
 
   const commitPlayers = (next: PendingPlayer[]) => {
     playersRef.current = next;
@@ -113,10 +115,10 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
         setText(content);
         setPasteMessage(null);
       } else {
-        setPasteMessage('A área de transferência está vazia. Copie a lista do grupo primeiro.');
+        setPasteMessage('Nada copiado ainda. Copie a lista no WhatsApp e toque em Colar.');
       }
     } catch {
-      setPasteMessage('O navegador bloqueou o botão Colar. Toque e segure na caixa abaixo e escolha Colar (ou use Ctrl+V).');
+      setPasteMessage('Não deu para colar sozinho. Toque e segure na caixa abaixo e escolha Colar.');
       textareaRef.current?.focus();
     }
   };
@@ -153,7 +155,7 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
     // Informa quantas linhas do texto não viraram nome (cabeçalho, linhas vazias)
     const linhasComTexto = text.split('\n').filter(l => l.trim().length > 0).length;
     setIgnoradas(Math.max(0, linhasComTexto - names.length));
-    setRemovido(null);
+    setDesfazer(null);
     setStep('preview');
   };
 
@@ -193,14 +195,25 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
     updatePlayer(index, { habilidades: { ...playersRef.current[index].habilidades, [key]: nota } });
   };
 
-  // Remove e guarda o jogador por alguns segundos para permitir "Desfazer"
+  // Mostra o aviso com "Desfazer" por alguns segundos
+  const mostrarDesfazer = (mensagem: string, restaurar: () => void) => {
+    setDesfazer({ mensagem, restaurar });
+    if (removidoTimer.current) clearTimeout(removidoTimer.current);
+    removidoTimer.current = setTimeout(() => setDesfazer(null), DESFAZER_MS);
+  };
+
+  // Tira o jogador da fila e guarda por alguns segundos para permitir "Desfazer"
   const removeFromList = (index: number) => {
     const alvo = playersRef.current[index];
     const next = playersRef.current.filter((_, i) => i !== index);
     commitPlayers(next);
-    setRemovido({ player: alvo, index });
-    if (removidoTimer.current) clearTimeout(removidoTimer.current);
-    removidoTimer.current = setTimeout(() => setRemovido(null), DESFAZER_MS);
+    mostrarDesfazer(`${alvo.nome.trim() || 'Nome em branco'} saiu da lista.`, () => {
+      const lista = [...playersRef.current];
+      lista.splice(Math.min(index, lista.length), 0, alvo);
+      commitPlayers(lista);
+      // O cartão aberto que estava depois do ponto de reinserção desloca uma posição
+      setExpanded(prev => (prev !== null && prev >= index ? prev + 1 : prev));
+    });
     // Removeu o cartão aberto: abre o próximo incompleto para manter o ritmo
     setExpanded(prev => {
       if (prev === null) return null;
@@ -222,14 +235,10 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
   const conhecidosNoPreview = players.filter(p => indice.has(normalizarNome(p.nome))).length;
   const preenchidosDoElenco = players.filter(p => temNotaNoElenco(p.nome, modo)).length;
 
-  const desfazerRemocao = () => {
-    if (!removido) return;
-    const lista = [...playersRef.current];
-    lista.splice(Math.min(removido.index, lista.length), 0, removido.player);
-    commitPlayers(lista);
-    // O cartão aberto que estava depois do ponto de reinserção desloca uma posição
-    setExpanded(prev => (prev !== null && prev >= removido.index ? prev + 1 : prev));
-    setRemovido(null);
+  const aplicarDesfazer = () => {
+    if (!desfazer) return;
+    desfazer.restaurar();
+    setDesfazer(null);
     if (removidoTimer.current) clearTimeout(removidoTimer.current);
   };
 
@@ -237,14 +246,26 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
   const chaves = players.map(p => normalizarNome(p.nome));
   const existentes = new Set(nomesExistentes.map(normalizarNome));
   const aviso = (idx: number): string | null => {
-    if (existentes.has(chaves[idx])) return 'já na lista';
-    if (chaves.indexOf(chaves[idx]) !== idx || chaves.lastIndexOf(chaves[idx]) !== idx) return 'repetido';
+    if (existentes.has(chaves[idx])) return 'já está na lista';
+    if (chaves.indexOf(chaves[idx]) !== idx || chaves.lastIndexOf(chaves[idx]) !== idx) return 'nome repetido';
     return null;
   };
   const nomesVazios = players.some(p => p.nome.trim().length === 0);
 
+  // O que ficaria duplicado: nomes que já estão na lista e, entre os repetidos da própria
+  // importação, todas as ocorrências depois da primeira
+  const indicesRepetidos = players.map((_, i) => i).filter(i => existentes.has(chaves[i]) || chaves.indexOf(chaves[i]) !== i);
+  const removerRepetidos = () => {
+    const antes = playersRef.current;
+    const n = indicesRepetidos.length;
+    commitPlayers(antes.filter((_, i) => !indicesRepetidos.includes(i)));
+    setExpanded(null);
+    mostrarDesfazer(`${n} ${plural(n, 'nome repetido saiu', 'nomes repetidos saíram')} da importação.`, () => commitPlayers(antes));
+  };
+
   const allFilled = players.length > 0 && players.every(p => isComplete(p, modo));
   const incompleteCount = players.filter(p => !isComplete(p, modo)).length;
+  const prontos = players.length - incompleteCount;
 
   const handleSubmit = async () => {
     if (submitting || !allFilled) return;
@@ -285,7 +306,7 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
     setExpanded(null);
     setConfirmClose(false);
     setPasteMessage(null);
-    setRemovido(null);
+    setDesfazer(null);
     if (avancoTimer.current) clearTimeout(avancoTimer.current);
     if (removidoTimer.current) clearTimeout(removidoTimer.current);
     onClose();
@@ -297,12 +318,25 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
     else setStep('paste');
   };
 
+  // Esc fecha, pedindo confirmação se houver algo preenchido
+  useEffect(() => {
+    if (!isOpen) return;
+    const aoTeclar = (e: KeyboardEvent) => { if (e.key === 'Escape') requestClose(); };
+    window.addEventListener('keydown', aoTeclar);
+    return () => window.removeEventListener('keydown', aoTeclar);
+  });
+
   if (!isOpen) return null;
 
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" onClick={requestClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-[#0D2847] rounded-t-3xl border-t border-[#1E8FD5]/30 shadow-2xl max-h-[96dvh] flex flex-col animate-in slide-in-from-bottom duration-300">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Importar lista do WhatsApp"
+        className="fixed inset-x-0 bottom-0 z-50 bg-[#0D2847] rounded-t-3xl border-t border-[#1E8FD5]/30 shadow-2xl max-h-[96dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
+      >
         <div className="max-w-md mx-auto w-full flex flex-col flex-1 min-h-0">
 
           {/* Handle */}
@@ -315,7 +349,7 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
             {step !== 'paste' ? (
               <button
                 onClick={handleBack}
-                className="text-[#4A90C4] hover:text-[#1E8FD5] flex items-center gap-1 transition-colors min-h-11"
+                className="text-[#7FB2DC] hover:text-[#1E8FD5] flex items-center gap-1 transition-colors min-h-11"
               >
                 <ChevronLeft size={20} />
                 Voltar
@@ -323,12 +357,12 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
             ) : (
               <div className="flex items-center gap-2">
                 <ClipboardList size={20} className="text-[#1BAF8A]" />
-                <h2 className="text-[#F0F4FF]">Importar Lista</h2>
+                <h2 className="text-[#F0F4FF]">Importar lista</h2>
               </div>
             )}
             <button
               onClick={requestClose}
-              className="text-[#4A90C4] hover:text-[#F0F4FF] transition-colors p-2.5 -m-2.5"
+              className="text-[#7FB2DC] hover:text-[#F0F4FF] transition-colors p-2.5 -m-2.5"
               aria-label="Fechar"
             >
               <X size={24} />
@@ -338,12 +372,12 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
           {/* Confirmação ao fechar com dados preenchidos */}
           {confirmClose && (
             <div className="mx-6 mb-3 shrink-0 flex items-center justify-between gap-3 bg-[#d4183d]/10 border border-[#d4183d]/40 rounded-xl px-4 py-3">
-              <span className="text-sm text-[#ff6b86]">Descartar a importação?</span>
-              <div className="flex items-center gap-4 shrink-0">
-                <button onClick={() => setConfirmClose(false)} className="text-sm text-[#4A90C4] hover:text-[#F0F4FF] py-2">
-                  Continuar
+              <span className="text-sm text-[#ff6b86]">Descartar o que você preencheu?</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => setConfirmClose(false)} className="text-sm text-[#7FB2DC] hover:text-[#F0F4FF] min-h-11 px-2">
+                  Continuar editando
                 </button>
-                <button onClick={handleClose} className="text-sm text-[#ff6b86] font-medium py-2">
+                <button onClick={handleClose} className="text-sm text-[#ff6b86] font-medium min-h-11 px-2">
                   Descartar
                 </button>
               </div>
@@ -354,8 +388,8 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
           {step === 'paste' && (
             <div className="px-6 pb-6 flex flex-col gap-4 flex-1 min-h-0">
               <div className="flex items-center justify-between shrink-0">
-                <p className="text-[#4A90C4] text-sm">
-                  Cole a lista numerada do grupo (ex: do WhatsApp):
+                <p className="text-[#7FB2DC] text-sm">
+                  Cole a lista de nomes do grupo, um por linha.
                 </p>
                 <button
                   onClick={handlePasteFromClipboard}
@@ -375,45 +409,55 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                 value={text}
                 onChange={e => { setText(e.target.value); setPasteMessage(null); }}
                 placeholder={"1. Fernanda\n2. Lucas\n3. Beatriz\n4. Rodrigo\n5. Camila\n..."}
-                className="flex-1 min-h-[200px] bg-[#162844] border border-[#1E8FD5]/30 focus:border-[#1E8FD5] rounded-xl p-4 text-[#F0F4FF] text-sm outline-none resize-none placeholder:text-[#4A90C4]/40 font-mono leading-relaxed"
+                className="flex-1 min-h-[200px] bg-[#162844] border border-[#1E8FD5]/30 focus:border-[#1E8FD5] rounded-xl p-4 text-[#F0F4FF] text-sm outline-none resize-none placeholder:text-[#7FB2DC]/70 leading-relaxed"
               />
               <button
                 onClick={handleParse}
                 disabled={!text.trim()}
-                className="w-full py-4 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#4A90C4] text-[#0A1628] font-medium rounded-xl transition-all disabled:cursor-not-allowed shrink-0"
+                className="w-full py-4 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#7FB2DC] text-[#0A1628] font-medium rounded-xl transition-all disabled:cursor-not-allowed shrink-0"
               >
-                Processar Lista
+                Continuar
               </button>
             </div>
           )}
 
-          {/* Aviso de remoção com opção de desfazer */}
-          {removido && step !== 'paste' && (
-            <div className="mx-6 mb-2 shrink-0 flex items-center justify-between gap-3 bg-[#1BAF8A]/10 border border-[#1BAF8A]/30 rounded-xl px-4 py-1">
-              <span className="text-sm text-[#1BAF8A] truncate">{removido.player.nome} removido.</span>
-              <button onClick={desfazerRemocao} className="text-sm font-semibold text-[#1BAF8A] underline underline-offset-2 min-h-11 px-2 shrink-0">
+          {/* Aviso com opção de desfazer */}
+          {desfazer && step !== 'paste' && (
+            <div role="status" className="mx-6 mb-2 shrink-0 flex items-center justify-between gap-3 bg-[#1BAF8A]/10 border border-[#1BAF8A]/30 rounded-xl px-4 py-1">
+              <span className="text-sm text-[#1BAF8A] truncate">{desfazer.mensagem}</span>
+              <button onClick={aplicarDesfazer} className="text-sm font-semibold text-[#1BAF8A] underline underline-offset-2 min-h-11 px-2 shrink-0">
                 Desfazer
               </button>
             </div>
           )}
 
-          {/* ── STEP 2: Preview dos nomes (corrigir ou remover antes de classificar) ── */}
+          {/* ── STEP 2: Preview dos nomes (corrigir ou tirar antes de avaliar) ── */}
           {step === 'preview' && (
             <>
               <div className="px-6 pb-3 shrink-0">
-                <p className="text-[#4A90C4] text-sm">
-                  <span className="text-[#1BAF8A] font-medium">{players.length}</span> nome{players.length !== 1 ? 's' : ''} detectado{players.length !== 1 ? 's' : ''}.
-                  Corrija ou remova o que estiver errado:
+                <p className="text-[#7FB2DC] text-sm">
+                  Encontramos <span className="text-[#1BAF8A] font-medium">{players.length}</span> {plural(players.length, 'nome', 'nomes')}.
+                  Corrija ou tire os que estiverem errados.
                 </p>
                 {conhecidosNoPreview > 0 && (
                   <p className="text-xs text-[#1BAF8A] mt-1">
-                    {conhecidosNoPreview} já {conhecidosNoPreview !== 1 ? 'conhecidos' : 'conhecido'}, {players.length - conhecidosNoPreview} {players.length - conhecidosNoPreview !== 1 ? 'novos' : 'novo'}.
+                    {conhecidosNoPreview} {plural(conhecidosNoPreview, 'já foi avaliado', 'já foram avaliados')} de outras vezes, {players.length - conhecidosNoPreview} {plural(players.length - conhecidosNoPreview, 'novo', 'novos')}.
                   </p>
                 )}
                 {ignoradas > 0 && (
-                  <p className="text-xs text-[#4A90C4]/90 mt-1">
-                    {ignoradas} linha{ignoradas !== 1 ? 's' : ''} do texto ignorada{ignoradas !== 1 ? 's' : ''} (cabeçalho ou linha vazia).
+                  <p className="text-xs text-[#7FB2DC] mt-1">
+                    {ignoradas} {plural(ignoradas, 'linha ignorada', 'linhas ignoradas')} (título ou texto que não é nome).
                   </p>
+                )}
+                {indicesRepetidos.length > 0 && (
+                  <div className="mt-2 flex items-center justify-between gap-3 bg-[#E0A526]/10 border border-[#E0A526]/30 rounded-xl pl-4 pr-2">
+                    <p className="text-xs text-[#E0A526] py-2">
+                      {indicesRepetidos.length} {plural(indicesRepetidos.length, 'nome já está na lista ou aparece repetido e vai ficar duplicado.', 'nomes já estão na lista ou aparecem repetidos e vão ficar duplicados.')}
+                    </p>
+                    <button onClick={removerRepetidos} className="text-sm font-medium text-[#E0A526] underline underline-offset-2 min-h-11 px-2 shrink-0">
+                      Tirar repetidos
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -422,60 +466,65 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                   const alerta = aviso(idx);
                   const vazio = player.nome.trim().length === 0;
                   return (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="w-6 text-right text-xs text-[#4A90C4]/80 shrink-0">{idx + 1}.</span>
-                      <input
-                        type="text"
-                        value={player.nome}
-                        maxLength={60}
-                        onChange={e => updateNome(idx, e.target.value)}
-                        aria-label={`Nome do jogador ${idx + 1}`}
-                        className={`flex-1 min-w-0 h-11 bg-[#162844] border rounded-lg px-3 text-sm text-[#F0F4FF] outline-none transition-colors focus:border-[#1E8FD5] ${
-                          vazio ? 'border-[#d4183d]/60' : alerta ? 'border-[#E0A526]/50' : 'border-[#1E8FD5]/20'
-                        }`}
-                      />
-                      {alerta ? (
-                        <span className="text-[11px] text-[#E0A526] shrink-0">{alerta}</span>
-                      ) : indice.has(chaves[idx]) ? (
-                        <span className="text-[11px] text-[#1BAF8A] shrink-0">conhecido</span>
-                      ) : null}
-                      <button
-                        onClick={() => removeFromList(idx)}
-                        className="text-[#4A90C4]/70 hover:text-[#d4183d] active:text-[#d4183d] transition-colors min-w-11 min-h-11 flex items-center justify-center shrink-0"
-                        aria-label={`Remover ${player.nome || 'jogador ' + (idx + 1)}`}
-                      >
-                        <X size={16} />
-                      </button>
+                    <div key={idx}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 text-right text-xs text-[#7FB2DC] shrink-0">{idx + 1}.</span>
+                        <input
+                          type="text"
+                          value={player.nome}
+                          maxLength={60}
+                          autoCapitalize="words"
+                          autoComplete="off"
+                          onChange={e => updateNome(idx, e.target.value)}
+                          aria-label={`Nome do jogador ${idx + 1}`}
+                          className={`flex-1 min-w-0 h-11 bg-[#162844] border rounded-lg px-3 text-sm text-[#F0F4FF] outline-none transition-colors focus:border-[#1E8FD5] ${
+                            vazio ? 'border-[#d4183d]/60' : alerta ? 'border-[#E0A526]/50' : 'border-[#1E8FD5]/20'
+                          }`}
+                        />
+                        <button
+                          onClick={() => removeFromList(idx)}
+                          className="text-[#7FB2DC] hover:text-[#ff6b86] active:text-[#ff6b86] transition-colors min-w-11 min-h-11 flex items-center justify-center shrink-0"
+                          aria-label={`Tirar ${player.nome.trim() || 'jogador ' + (idx + 1)} da lista`}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      {/* O aviso fica embaixo do campo, para o campo não mudar de largura */}
+                      {(alerta || indice.has(chaves[idx])) && (
+                        <p className={`ml-8 mt-1 text-xs ${alerta ? 'text-[#E0A526]' : 'text-[#1BAF8A]'}`}>
+                          {alerta ?? 'já avaliado'}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
               </div>
 
-              <div className="px-6 pt-3 pb-6 border-t border-[#1E8FD5]/20 shrink-0 space-y-2">
+              <div className="px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] border-t border-[#1E8FD5]/20 shrink-0 space-y-2">
                 {nomesVazios && (
-                  <p className="text-center text-xs text-[#ff6b86]">Há nomes vazios. Preencha ou remova.</p>
+                  <p className="text-center text-xs text-[#ff6b86]">Tem nome em branco. Preencha ou tire da lista.</p>
                 )}
                 <button
                   onClick={continuarDoPreview}
                   disabled={players.length === 0 || nomesVazios}
-                  className="w-full py-4 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#4A90C4] text-[#0A1628] font-medium rounded-xl transition-all disabled:cursor-not-allowed"
+                  className="w-full min-h-14 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#7FB2DC] text-[#0A1628] font-semibold rounded-xl transition-all disabled:cursor-not-allowed"
                 >
-                  Continuar com {players.length} jogador{players.length !== 1 ? 'es' : ''}
+                  Continuar com {players.length} {plural(players.length, 'jogador', 'jogadores')}
                 </button>
               </div>
             </>
           )}
 
-          {/* ── STEP 3: Escolher classificação ── */}
+          {/* ── STEP 3: Como avaliar ── */}
           {step === 'modo' && (
             <div className="px-6 pb-6 flex flex-col gap-4">
-              <p className="text-[#4A90C4] text-sm">
-                <span className="text-[#1BAF8A] font-medium">{players.length}</span> jogadores
-                detectados. Como quer classificar?
+              <p className="text-[#7FB2DC] text-sm">
+                Como você quer avaliar os <span className="text-[#1BAF8A] font-medium">{players.length}</span> {plural(players.length, 'jogador', 'jogadores')}?
+                A escolha vale para toda a lista.
               </p>
               {conhecidosNoPreview > 0 && (
                 <p className="text-xs text-[#1BAF8A] -mt-2">
-                  {conhecidosNoPreview} já {conhecidosNoPreview !== 1 ? 'estão' : 'está'} no elenco e {conhecidosNoPreview !== 1 ? 'vêm preenchidos' : 'vem preenchido'}.
+                  {conhecidosNoPreview} {plural(conhecidosNoPreview, 'já foi avaliado antes e vem preenchido', 'já foram avaliados antes e vêm preenchidos')}.
                 </p>
               )}
 
@@ -487,12 +536,12 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
           {step === 'configure' && (
             <>
               <div className="px-6 pb-3 shrink-0">
-                <p className="text-[#4A90C4] text-sm">
-                  <span className="text-[#1BAF8A] font-medium">{players.length}</span> jogadores. Defina o gênero e {modo === 'detalhado' ? 'as habilidades' : 'o nível'}:
+                <p className="text-[#7FB2DC] text-sm">
+                  Marque o gênero e {modo === 'detalhado' ? 'as notas' : 'o nível'} de cada um:
                 </p>
                 {preenchidosDoElenco > 0 && (
                   <p className="text-xs text-[#1BAF8A] mt-1">
-                    {preenchidosDoElenco} já {preenchidosDoElenco !== 1 ? 'vêm preenchidos' : 'vem preenchido'} do elenco. Revise se algo mudou.
+                    {preenchidosDoElenco} {plural(preenchidosDoElenco, 'já vem preenchido (avaliado antes)', 'já vêm preenchidos (avaliados antes)')}. Confira se algo mudou.
                   </p>
                 )}
               </div>
@@ -508,81 +557,40 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                       key={idx}
                       ref={el => { cardRefs.current[idx] = el; }}
                       className={`bg-[#162844] rounded-xl p-3 border transition-colors duration-300 ${
-                        incomplete ? 'border-[#d4183d]/40' : 'border-[#1BAF8A]/40'
+                        incomplete ? 'border-[#1E8FD5]/20' : 'border-[#1BAF8A]/40'
                       }`}
                     >
                       {/* Nome + remover */}
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[#4A90C4]/50 text-xs shrink-0">{idx + 1}.</span>
+                          <span className="text-[#7FB2DC] text-xs shrink-0">{idx + 1}.</span>
                           <span className="text-[#F0F4FF] font-medium truncate">{player.nome}</span>
                           {temNotaNoElenco(player.nome, modo) && (
-                            <span className="text-[10px] text-[#1BAF8A] border border-[#1BAF8A]/40 rounded px-1 shrink-0">conhecido</span>
+                            <span className="text-xs text-[#1BAF8A] border border-[#1BAF8A]/40 rounded px-1.5 py-0.5 shrink-0">já avaliado</span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 ml-3 shrink-0">
-                          {incomplete && (
-                            <span className="text-[#d4183d] text-xs">Preencha</span>
-                          )}
-                          <button
-                            onClick={() => removeFromList(idx)}
-                            className="text-[#4A90C4]/60 hover:text-[#d4183d] active:text-[#d4183d] transition-colors p-3 -m-2"
-                            aria-label={`Remover ${player.nome}`}
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => removeFromList(idx)}
+                          className="text-[#7FB2DC] hover:text-[#ff6b86] active:text-[#ff6b86] transition-colors min-w-11 min-h-11 -my-2 -mr-3 flex items-center justify-center shrink-0"
+                          aria-label={`Tirar ${player.nome} da lista`}
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
 
                       {/* Gênero */}
-                      <div role="group" aria-label="Gênero">
-                        <div className="flex gap-2">
-                          {(['M', 'F', 'O'] as const).map(g => {
-                            const labels = { M: 'Masc', F: 'Fem', O: 'Outro' };
-                            return (
-                              <button
-                                key={g}
-                                onClick={() => updatePlayer(idx, { genero: g })}
-                                className={`flex-1 h-11 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${
-                                  player.genero === g
-                                    ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-semibold'
-                                    : 'bg-[#0D2847] text-[#4A90C4]'
-                                }`}
-                              >
-                                <GeneroIcon genero={g} size={14} decorativo />
-                                {labels[g]}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      <SeletorGenero valor={player.genero} onChange={g => updatePlayer(idx, { genero: g })} sobre="cartao" compacto />
 
-                      {/* Nível (modo rápido) */}
+                      {/* Nível (avaliação rápida) */}
                       {modo === 'simples' && (
                         <div className="mt-3">
                           <div className="flex items-center justify-between mb-2">
-                            <span className={`text-xs ${player.nivel === null ? 'text-[#d4183d]/70' : 'text-[#4A90C4]'}`}>
-                              Nível
-                            </span>
-                            <span className={`text-xs font-medium ${player.nivel !== null ? 'text-[#1BAF8A]' : 'text-[#4A90C4]/40'}`}>
-                              {player.nivel !== null ? SKILL_LABELS[player.nivel - 1] : 'Selecione'}
+                            <span className="text-xs text-[#7FB2DC]">Nível</span>
+                            <span className={`text-xs font-medium ${player.nivel !== null ? 'text-[#1BAF8A]' : 'text-[#7FB2DC]'}`}>
+                              {player.nivel !== null ? NIVEL_LABELS[player.nivel - 1] : 'Sem nível'}
                             </span>
                           </div>
-                          <div className="flex gap-1.5">
-                            {[1, 2, 3, 4, 5].map(lvl => (
-                              <button
-                                key={lvl}
-                                onClick={() => updatePlayer(idx, { nivel: lvl })}
-                                className={`flex-1 h-11 rounded-lg text-sm font-medium transition-all ${
-                                  player.nivel !== null && lvl <= player.nivel
-                                    ? 'bg-gradient-to-t from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628]'
-                                    : 'bg-[#0D2847] text-[#4A90C4]/50'
-                                }`}
-                              >
-                                {lvl}
-                              </button>
-                            ))}
-                          </div>
+                          <SeletorNivel valor={player.nivel} onChange={lvl => updatePlayer(idx, { nivel: lvl })} sobre="cartao" />
                         </div>
                       )}
 
@@ -594,14 +602,14 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                             className="w-full flex items-center justify-between py-1"
                             aria-expanded={aberto}
                           >
-                            <span className={`text-xs ${notasPreenchidas < HABILIDADES.length ? 'text-[#d4183d]/70' : 'text-[#4A90C4]'}`}>
+                            <span className="text-xs text-[#7FB2DC]">
                               Habilidades
                             </span>
                             <span className="flex items-center gap-1.5 text-xs">
-                              <span className={notasPreenchidas === HABILIDADES.length ? 'text-[#1BAF8A] font-medium' : 'text-[#4A90C4]/60'}>
+                              <span className={notasPreenchidas === HABILIDADES.length ? 'text-[#1BAF8A] font-medium' : 'text-[#7FB2DC]'}>
                                 {notasPreenchidas}/{HABILIDADES.length}
                               </span>
-                              <ChevronDown size={14} className={`text-[#4A90C4] transition-transform ${aberto ? 'rotate-180' : ''}`} />
+                              <ChevronDown size={14} className={`text-[#7FB2DC] transition-transform ${aberto ? 'rotate-180' : ''}`} />
                             </span>
                           </button>
                           {/* Abre/fecha animando a altura (grid 0fr/1fr); fechado fica inerte */}
@@ -617,7 +625,6 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                                   value={player.habilidades}
                                   onChange={(key, nota) => updateHabilidade(idx, key, nota)}
                                   disabled={!aberto}
-                                  showMissing
                                   showDica={false}
                                   onCard
                                 />
@@ -632,25 +639,28 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                 })}
               </div>
 
-              {/* Botão confirmar */}
-              <div className="px-6 pt-2 pb-4 border-t border-[#1E8FD5]/20 shrink-0 space-y-1.5">
-                {incompleteCount > 0 && (
-                  <p className="text-center text-xs text-[#ff6b86]">
-                    {incompleteCount} jogador{incompleteCount !== 1 ? 'es' : ''} sem gênero ou {modo === 'detalhado' ? 'habilidades' : 'nível'} definido{incompleteCount !== 1 ? 's' : ''}
-                  </p>
+              {/* Progresso e botão de adicionar */}
+              <div className="px-6 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[#1E8FD5]/20 shrink-0 space-y-1.5">
+                {players.length > 0 && (
+                  <div>
+                    <p className="text-center text-xs text-[#7FB2DC] mb-1.5">{prontos} de {players.length} {plural(players.length, 'pronto', 'prontos')}</p>
+                    <div className="h-1 rounded-full bg-[#7FB2DC]/20 overflow-hidden">
+                      <div className="h-full bg-[#1BAF8A] transition-all duration-300" style={{ width: `${players.length > 0 ? (prontos / players.length) * 100 : 0}%` }} />
+                    </div>
+                  </div>
                 )}
                 <button
                   onClick={handleSubmit}
                   disabled={submitting || !allFilled}
-                  className="w-full py-3.5 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#4A90C4] text-[#0A1628] font-medium rounded-xl transition-all flex items-center justify-center gap-2"
+                  className="w-full min-h-14 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#7FB2DC] text-[#0A1628] font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
                 >
                   {submitting ? (
                     <>
                       <Loader2 size={18} className="animate-spin" />
-                      Adicionando...
+                      Adicionando…
                     </>
                   ) : (
-                    `Adicionar ${players.length} jogador${players.length !== 1 ? 'es' : ''}`
+                    `Adicionar ${players.length} ${plural(players.length, 'jogador', 'jogadores')}`
                   )}
                 </button>
               </div>
