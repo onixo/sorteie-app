@@ -3,6 +3,7 @@ import { Users, Plus, Loader2, ClipboardList, Trash2, Pencil } from 'lucide-reac
 import { Player, ModoClassificacao } from '../types';
 import { HABILIDADES } from '../habilidades';
 import { HexBackground } from './HexBackground';
+import { GeneroIcon } from './GeneroIcon';
 
 interface PlayerListProps {
   players: Player[];
@@ -65,12 +66,6 @@ export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayer
   const getInitials = (nome: string) =>
     nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
-  const getGenderIcon = (genero: 'M' | 'F' | 'O') => {
-    if (genero === 'M') return '♂';
-    if (genero === 'F') return '♀';
-    return '⚥';
-  };
-
   return (
     <div className="min-h-screen bg-[#0A1628] pb-28">
       <HexBackground />
@@ -93,8 +88,8 @@ export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayer
             <span className="text-[#F0F4FF]">{totalPlayers} jogadores</span>
           </div>
           <div className="flex items-center gap-4 text-sm">
-            <span className="text-[#4A90C4]">♂ {maleCount}</span>
-            <span className="text-[#4A90C4]">♀ {femaleCount}</span>
+            <span className="flex items-center gap-1 text-[#4A90C4]"><GeneroIcon genero="M" size={14} />{maleCount}</span>
+            <span className="flex items-center gap-1 text-[#4A90C4]"><GeneroIcon genero="F" size={14} />{femaleCount}</span>
             {totalPlayers > 0 && !confirmClear && (
               <button
                 onClick={handleClearClick}
@@ -241,7 +236,7 @@ export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayer
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[#F0F4FF] truncate">{player.nome}</span>
-                  <span className="text-[#4A90C4] text-sm shrink-0">{getGenderIcon(player.genero)}</span>
+                  <span className="text-[#4A90C4] shrink-0 flex items-center"><GeneroIcon genero={player.genero} size={15} /></span>
                 </div>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map((level) => (

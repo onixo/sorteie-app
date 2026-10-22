@@ -3,6 +3,7 @@ import { X, Loader2 } from 'lucide-react';
 import { Player, NewPlayerPayload, Habilidades } from '../types';
 import { habilidadesCompletas, calcularNivel } from '../habilidades';
 import { HabilidadesInput } from './HabilidadesInput';
+import { GeneroIcon } from './GeneroIcon';
 
 interface EditPlayerSheetProps {
   player: Player | null;
@@ -84,7 +85,7 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
               <label className="block text-[#4A90C4] text-sm mb-3">Gênero</label>
               <div className="flex gap-2">
                 {(['M', 'F', 'O'] as const).map((g) => {
-                  const labels = { M: ['♂', 'Masculino'], F: ['♀', 'Feminino'], O: ['⚥', 'Outro'] };
+                  const labels = { M: 'Masculino', F: 'Feminino', O: 'Outro' };
                   return (
                     <button
                       key={g}
@@ -97,8 +98,8 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
                           : 'bg-[#162844] text-[#4A90C4] hover:bg-[#1E8FD5]/10'
                       }`}
                     >
-                      <span className="leading-none">{labels[g][0]}</span>
-                      <span>{labels[g][1]}</span>
+                      <GeneroIcon genero={g} size={16} decorativo />
+                      <span>{labels[g]}</span>
                     </button>
                   );
                 })}

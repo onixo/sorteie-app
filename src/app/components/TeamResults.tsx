@@ -2,6 +2,7 @@ import { Share2, Copy, CheckCircle, XCircle, Scale, Venus } from 'lucide-react';
 import { ResultadoSorteio } from '../types';
 import { HABILIDADES, ehLevantador } from '../habilidades';
 import { HexBackground } from './HexBackground';
+import { GeneroIcon } from './GeneroIcon';
 
 interface TeamResultsProps {
   resultado: ResultadoSorteio;
@@ -28,12 +29,6 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
   const teamColors = ['#1BAF8A', '#1E8FD5', '#1565A8', '#4A90C4', '#1BAF8A', '#1E8FD5'];
 
   const isVaga = (player: { id: number }) => player.id < 0;
-
-  const getGenderIcon = (genero: 'M' | 'F' | 'O') => {
-    if (genero === 'M') return '♂';
-    if (genero === 'F') return '♀';
-    return '⚥';
-  };
 
   const modoLabel = modoSorteio === 'genero' ? 'Prioridade de Gênero' : 'Equilibrado';
   const classificacaoLabel = detalhado ? 'Detalhada (5 habilidades)' : 'Rápida (nível 1-5)';
@@ -182,10 +177,10 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
                   </span>
                 </div>
               </div>
-              <div className="flex gap-3 text-sm text-[#4A90C4]">
-                <span>♂ {time.masculinos}</span>
-                <span>♀ {time.femininos}</span>
-                {time.outros > 0 && <span>⚥ {time.outros}</span>}
+              <div className="flex items-center gap-3 text-sm text-[#4A90C4]">
+                <span className="flex items-center gap-1"><GeneroIcon genero="M" size={14} />{time.masculinos}</span>
+                <span className="flex items-center gap-1"><GeneroIcon genero="F" size={14} />{time.femininos}</span>
+                {time.outros > 0 && <span className="flex items-center gap-1"><GeneroIcon genero="O" size={14} />{time.outros}</span>}
               </div>
 
               {/* Média por habilidade do time (modo detalhado) */}
@@ -225,7 +220,7 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
                     </span>
                     {isVaga(player)
                       ? <span className="text-[10px] text-[#4A90C4] border border-[#4A90C4]/40 rounded px-1">LIVRE</span>
-                      : <span className="text-[#4A90C4] text-sm">{getGenderIcon(player.genero)}</span>
+                      : <span className="text-[#4A90C4] flex items-center"><GeneroIcon genero={player.genero} size={14} /></span>
                     }
                     {ehLevantador(player) && (
                       <span className="text-[10px] text-[#1E8FD5] border border-[#1E8FD5]/40 rounded px-1">LEV</span>
@@ -260,7 +255,7 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
                 <div key={pIdx} className="px-4 py-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-[#4A90C4]">{player.nome}</span>
-                    <span className="text-[#4A90C4]/60 text-sm">{getGenderIcon(player.genero)}</span>
+                    <span className="text-[#4A90C4]/60 flex items-center"><GeneroIcon genero={player.genero} size={14} /></span>
                   </div>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((level) => (

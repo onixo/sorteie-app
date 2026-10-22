@@ -4,6 +4,7 @@ import { NewPlayerPayload, Habilidades, ModoClassificacao, ElencoItem } from '..
 import { HABILIDADES, habilidadesCompletas, calcularNivel } from '../habilidades';
 import { normalizarNome, indexarElenco } from '../elenco';
 import { HabilidadesInput } from './HabilidadesInput';
+import { GeneroIcon } from './GeneroIcon';
 
 interface ImportPlayersSheetProps {
   isOpen: boolean;
@@ -561,17 +562,18 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                       <div role="group" aria-label="Gênero">
                         <div className="flex gap-2">
                           {(['M', 'F', 'O'] as const).map(g => {
-                            const labels = { M: '♂ Masc', F: '♀ Fem', O: '⚥ Outro' };
+                            const labels = { M: 'Masc', F: 'Fem', O: 'Outro' };
                             return (
                               <button
                                 key={g}
                                 onClick={() => updatePlayer(idx, { genero: g })}
-                                className={`flex-1 h-11 rounded-lg text-xs font-medium transition-all ${
+                                className={`flex-1 h-11 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${
                                   player.genero === g
                                     ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-semibold'
                                     : 'bg-[#0D2847] text-[#4A90C4]'
                                 }`}
                               >
+                                <GeneroIcon genero={g} size={14} decorativo />
                                 {labels[g]}
                               </button>
                             );
