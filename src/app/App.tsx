@@ -6,6 +6,7 @@ import { EditPlayerSheet } from './components/EditPlayerSheet';
 import { SorteioConfig } from './components/SorteioConfig';
 import { TeamResults } from './components/TeamResults';
 import { Toast } from './components/Toast';
+import { InstallBanner } from './components/InstallBanner';
 import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ElencoItem } from './types';
 import { getPlayers, createPlayer, deletePlayer, restorePlayer, updatePlayer, clearPlayers, getElenco, clearElenco, sortear } from './services/api';
 import { modoDaLista } from './habilidades';
@@ -189,6 +190,7 @@ export default function App() {
 
       {screen === 'list' && (
         <>
+          <InstallBanner />
           <PlayerList
             players={players}
             modo={modoLista}
