@@ -7,7 +7,7 @@ import { SorteioConfig } from './components/SorteioConfig';
 import { TeamResults } from './components/TeamResults';
 import { Toast } from './components/Toast';
 import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio } from './types';
-import { getPlayers, createPlayer, deletePlayer, updatePlayer, clearPlayers, sortear } from './services/api';
+import { getPlayers, createPlayer, deletePlayer, restorePlayer, updatePlayer, clearPlayers, sortear } from './services/api';
 import { modoDaLista } from './habilidades';
 
 type Screen = 'list' | 'config' | 'results';
@@ -21,13 +21,17 @@ export default function App() {
   const [resultado, setResultado] = useState<ResultadoSorteio | null>(null);
   const [vagasLivresCount, setVagasLivresCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; action?: { label: string; onClick: () => void } } | null>(null);
 
   // Modo de classificação da lista (definido pelo primeiro jogador; null = lista vazia)
   const modoLista = modoDaLista(players);
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type });
+  const showToast = useCallback((
+    message: string,
+    type: 'success' | 'error' = 'success',
+    action?: { label: string; onClick: () => void },
+  ) => {
+    setToast({ message, type, action });
   }, []);
 
   useEffect(() => {
@@ -45,12 +49,38 @@ export default function App() {
     }
   };
 
+  // Importação em lote: um único toast. Retorna quantos foram salvos; em falha parcial
+  // mantém os já salvos na lista e informa o erro, para o sheet não reenviar duplicados.
+  const addPlayers = async (payloads: NewPlayerPayload[]): Promise<number> => {
+    const created: Player[] = [];
+    try {
+      for (const payload of payloads) {
+        created.push(await createPlayer(payload));
+      }
+      showToast(`${created.length} jogador${created.length !== 1 ? 'es' : ''} adicionado${created.length !== 1 ? 's' : ''}!`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao adicionar jogadores.');
+    }
+    if (created.length > 0) setPlayers(prev => [...prev, ...created]);
+    return created.length;
+  };
+
   const removePlayer = async (id: number) => {
     try {
       const player = players.find(p => p.id === id);
       await deletePlayer(id);
       setPlayers(prev => prev.filter(p => p.id !== id));
-      showToast(`${player?.nome ?? 'Jogador'} removido.`);
+      showToast(`${player?.nome ?? 'Jogador'} removido.`, 'success', player ? {
+        label: 'Desfazer',
+        onClick: async () => {
+          try {
+            await restorePlayer(player);
+            setPlayers(prev => [...prev.filter(p => p.id !== player.id), player].sort((a, b) => a.id - b.id));
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Erro ao desfazer.');
+          }
+        },
+      } : undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao remover jogador.');
     }
@@ -72,6 +102,17 @@ export default function App() {
       await clearPlayers();
       setPlayers([]);
       showToast('Lista limpa.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao limpar lista.');
+    }
+  };
+
+  // Trocar o modo de classificação exige lista vazia: limpa e deixa o modo ser escolhido de novo
+  const handleChangeMode = async () => {
+    try {
+      await clearPlayers();
+      setPlayers([]);
+      showToast('Lista limpa. Escolha o modo ao importar ou adicionar.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao limpar lista.');
     }
@@ -119,6 +160,7 @@ export default function App() {
         <Toast
           message={toast.message}
           type={toast.type}
+          action={toast.action}
           onClose={() => setToast(null)}
         />
       )}
@@ -134,6 +176,7 @@ export default function App() {
             onRemovePlayer={removePlayer}
             onEditPlayer={setEditingPlayer}
             onClearPlayers={handleClearPlayers}
+            onChangeMode={handleChangeMode}
           />
           <AddPlayerSheet
             isOpen={isAddPlayerOpen}
@@ -144,7 +187,8 @@ export default function App() {
           <ImportPlayersSheet
             isOpen={isImportOpen}
             onClose={() => setIsImportOpen(false)}
-            onAdd={addPlayer}
+            onAddMany={addPlayers}
+            nomesExistentes={players.map(p => p.nome)}
             modoLista={modoLista}
           />
           <EditPlayerSheet

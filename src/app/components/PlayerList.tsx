@@ -13,11 +13,24 @@ interface PlayerListProps {
   onRemovePlayer: (id: number) => void;
   onEditPlayer: (player: Player) => void;
   onClearPlayers: () => Promise<void>;
+  onChangeMode: () => Promise<void>;
 }
 
-export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onEditPlayer, onClearPlayers }: PlayerListProps) {
+export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onEditPlayer, onClearPlayers, onChangeMode }: PlayerListProps) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [confirmTrocar, setConfirmTrocar] = useState(false);
+  const [trocando, setTrocando] = useState(false);
+
+  const handleConfirmTrocar = async () => {
+    try {
+      setTrocando(true);
+      await onChangeMode();
+    } finally {
+      setTrocando(false);
+      setConfirmTrocar(false);
+    }
+  };
 
   const handleClearClick = () => setConfirmClear(true);
 
@@ -70,7 +83,7 @@ export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayer
             {totalPlayers > 0 && !confirmClear && (
               <button
                 onClick={handleClearClick}
-                className="text-[#4A90C4]/50 hover:text-[#d4183d] transition-colors"
+                className="text-[#4A90C4]/70 hover:text-[#d4183d] transition-colors p-3 -m-3"
                 aria-label="Limpar lista"
               >
                 <Trash2 size={16} />
@@ -96,10 +109,40 @@ export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayer
           </div>
         </div>
 
-        {modo && (
-          <p className="text-[#4A90C4] text-xs text-center mt-2">
-            Classificação: {modo === 'detalhado' ? 'Detalhada (5 habilidades)' : 'Rápida (nível 1-5)'}
-          </p>
+        {modo && !confirmTrocar && (
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <p className="text-[#4A90C4] text-xs">
+              Classificação: {modo === 'detalhado' ? 'Detalhada (5 habilidades)' : 'Rápida (nível 1-5)'}
+            </p>
+            <button
+              onClick={() => setConfirmTrocar(true)}
+              className="text-xs text-[#1E8FD5] underline underline-offset-2 min-h-11 px-2 -my-2"
+            >
+              Trocar
+            </button>
+          </div>
+        )}
+        {modo && confirmTrocar && (
+          <div className="mt-2 bg-[#d4183d]/10 border border-[#d4183d]/40 rounded-xl px-4 py-3">
+            <p className="text-xs text-[#ff6b86] mb-2">
+              Trocar o modo limpa os {totalPlayers} jogador{totalPlayers !== 1 ? 'es' : ''} da lista. Continuar?
+            </p>
+            <div className="flex items-center justify-end gap-4">
+              <button
+                onClick={() => setConfirmTrocar(false)}
+                className="text-sm text-[#4A90C4] hover:text-[#F0F4FF] min-h-11 px-2"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmTrocar}
+                disabled={trocando}
+                className="text-sm text-[#ff6b86] font-medium min-h-11 px-2"
+              >
+                {trocando ? 'Limpando...' : 'Limpar e trocar'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -172,14 +215,14 @@ export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayer
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => onEditPlayer(player)}
-                  className="text-[#4A90C4]/40 hover:text-[#1E8FD5] active:text-[#1E8FD5] transition-colors p-2"
+                  className="text-[#4A90C4]/60 hover:text-[#1E8FD5] active:text-[#1E8FD5] transition-colors min-w-11 min-h-11 flex items-center justify-center"
                   aria-label={`Editar ${player.nome}`}
                 >
                   <Pencil size={15} />
                 </button>
                 <button
                   onClick={() => onRemovePlayer(player.id)}
-                  className="text-[#4A90C4]/40 hover:text-[#d4183d] active:text-[#d4183d] transition-colors p-2 text-2xl leading-none"
+                  className="text-[#4A90C4]/60 hover:text-[#d4183d] active:text-[#d4183d] transition-colors min-w-11 min-h-11 flex items-center justify-center text-2xl leading-none"
                   aria-label={`Remover ${player.nome}`}
                 >
                   ×

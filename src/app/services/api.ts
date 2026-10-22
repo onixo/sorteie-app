@@ -40,6 +40,12 @@ export async function deletePlayer(id: number): Promise<void> {
   savePlayers(loadPlayers().filter(p => p.id !== id));
 }
 
+// Desfazer remoção: reinsere o jogador com o mesmo id, mantendo a ordem de criação.
+export async function restorePlayer(player: Player): Promise<void> {
+  const players = loadPlayers().filter(p => p.id !== player.id);
+  savePlayers([...players, player].sort((a, b) => a.id - b.id));
+}
+
 export async function updatePlayer(id: number, payload: NewPlayerPayload): Promise<Player> {
   const players = loadPlayers();
   const updated = players.map(p => p.id === id ? { ...p, ...payload } : p);
