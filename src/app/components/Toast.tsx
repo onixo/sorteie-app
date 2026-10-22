@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Check, TriangleAlert } from 'lucide-react';
 
 interface ToastProps {
   message: string;
@@ -22,7 +23,9 @@ export function Toast({ message, type = 'success', action, onClose }: ToastProps
           : 'bg-[#3A1420] border border-[#d4183d]/50 text-[#ff6b86]'
       }`}
     >
-      <span className="text-base leading-none">{type === 'success' ? '✓' : '⚠'}</span>
+      <span className="shrink-0 flex items-center">
+        {type === 'success' ? <Check size={18} aria-hidden="true" /> : <TriangleAlert size={18} aria-hidden="true" />}
+      </span>
       <span className="flex-1 text-sm">{message}</span>
       {action && (
         <button

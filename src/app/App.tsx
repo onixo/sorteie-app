@@ -7,6 +7,7 @@ import { SorteioConfig } from './components/SorteioConfig';
 import { TeamResults } from './components/TeamResults';
 import { Toast } from './components/Toast';
 import { InstallBanner } from './components/InstallBanner';
+import { TriangleAlert, X } from 'lucide-react';
 import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ElencoItem } from './types';
 import { getPlayers, createPlayer, deletePlayer, restorePlayer, updatePlayer, clearPlayers, getElenco, clearElenco, sortear } from './services/api';
 import { modoDaLista } from './habilidades';
@@ -167,13 +168,14 @@ export default function App() {
       {/* Banner de erro global */}
       {error && (
         <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto bg-[#d4183d]/10 border border-[#d4183d]/40 text-[#d4183d] text-sm rounded-xl px-4 py-3 flex items-start gap-3">
-          <span className="mt-0.5 shrink-0">⚠</span>
+          <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span className="flex-1">{error}</span>
           <button
             onClick={() => setError(null)}
-            className="text-[#d4183d]/60 hover:text-[#d4183d] transition-colors shrink-0"
+            aria-label="Fechar aviso de erro"
+            className="text-[#d4183d]/60 hover:text-[#d4183d] transition-colors shrink-0 min-w-11 min-h-11 -m-3 flex items-center justify-center"
           >
-            ×
+            <X size={16} />
           </button>
         </div>
       )}
