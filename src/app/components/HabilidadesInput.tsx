@@ -21,11 +21,11 @@ export function HabilidadesInput({ value, onChange, disabled, showMissing, showD
           <div key={key}>
             <div className="flex items-center justify-between mb-1.5">
               <span className={`text-sm ${missing ? 'text-[#ff6b86]' : 'text-[#F0F4FF]'}`}>{label}</span>
-              <span className={`text-xs font-medium ${nota !== undefined ? 'text-[#1BAF8A]' : 'text-[#4A90C4]/70'}`}>
-                {nota !== undefined ? NOTA_LABELS[nota - 1] : missing ? 'Falta' : 'Selecione'}
+              <span className={`text-xs font-medium ${nota !== undefined ? 'text-[#1BAF8A]' : 'text-[#7FB2DC]'}`}>
+                {nota !== undefined ? NOTA_LABELS[nota - 1] : 'Sem nota'}
               </span>
             </div>
-            {showDica && <p className="text-xs text-[#4A90C4]/90 mb-2">{dica}</p>}
+            {showDica && <p className="text-xs text-[#7FB2DC] mb-2">{dica}</p>}
             <div className="flex gap-1.5">
               {[1, 2, 3, 4, 5].map(n => (
                 <button
@@ -38,7 +38,7 @@ export function HabilidadesInput({ value, onChange, disabled, showMissing, showD
                   className={`flex-1 h-11 rounded-lg text-sm font-medium transition-all ${
                     nota !== undefined && n <= nota
                       ? 'bg-gradient-to-t from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628]'
-                      : `${onCard ? 'bg-[#0D2847]' : 'bg-[#1A3050]'} text-[#4A90C4]/70`
+                      : `${onCard ? 'bg-[#0D2847]' : 'bg-[#1A3050]'} text-[#7FB2DC]`
                   }`}
                 >
                   {n}

@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Sorteie — Bull Analytics",
+  "name": "Sorteie: times de vôlei",
   "short_name": "Sorteie",
-  "description": "Sorteio inteligente para o seu vôlei",
+  "description": "Sorteie times equilibrados para o seu vôlei",
   "lang": "pt-BR",
   "start_url": "/",
   "scope": "/",

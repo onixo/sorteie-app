@@ -17,7 +17,7 @@ export interface Player {
   id: number;
   nome: string;
   genero: 'M' | 'F' | 'O';
-  nivel: number; // 1=Iniciante, 2=Praticante, 3=Intermediário, 4=Avançado, 5=Expert
+  nivel: number; // 1=Iniciante, 2=Básico, 3=Intermediário, 4=Avançado, 5=Craque (rótulos em NIVEL_LABELS)
   habilidades?: Habilidades; // presente apenas no modo detalhado
   criado_em?: string;
 }

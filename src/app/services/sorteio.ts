@@ -21,6 +21,10 @@ function escolherEntreMelhores(tentativas: Tentativa[]): Tentativa {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// Erro com mensagem pronta para mostrar ao usuário (o app só exibe mensagens deste tipo;
+// qualquer outro erro vira um texto genérico).
+export class ErroSorteio extends Error {}
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -334,15 +338,16 @@ export function sortearTimes(
   const needed = numTimes * jogadoresPorTime;
 
   if (players.length < needed) {
-    throw new Error(
-      `Jogadores insuficientes. Necessário: ${needed}, disponível: ${players.length}.`
+    const faltam = needed - players.length;
+    throw new ErroSorteio(
+      `Faltam ${faltam} jogador${faltam !== 1 ? 'es' : ''} para formar os times. Adicione mais gente ou diminua o tamanho dos times.`
     );
   }
 
   // Dado inválido não é corrigido em silêncio: interrompe com erro claro
   for (const p of players) {
     if (p.habilidades && !habilidadesCompletas(p.habilidades)) {
-      throw new Error(`${p.nome}: habilidades incompletas ou inválidas. Edite o jogador.`);
+      throw new ErroSorteio(`As notas de ${p.nome} estão incompletas. Toque no lápis ao lado do nome e preencha as 5 habilidades.`);
     }
   }
 

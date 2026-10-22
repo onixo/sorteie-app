@@ -3,14 +3,17 @@ import { Habilidades, ModoClassificacao, Player } from './types';
 // ─── Habilidades (classificação detalhada) ────────────────────────────────────
 
 export const HABILIDADES: { key: keyof Habilidades; label: string; abrev: string; dica: string }[] = [
-  { key: 'saque',        label: 'Saque',            abrev: 'Saq', dica: 'Força e consistência. Entra na quadra?' },
-  { key: 'levantamento', label: 'Levantamento',     abrev: 'Lev', dica: 'Precisão ao colocar a bola pro atacante' },
+  { key: 'saque',        label: 'Saque',            abrev: 'Saq', dica: 'Saque forte e que não erra' },
+  { key: 'levantamento', label: 'Levantamento',     abrev: 'Lev', dica: 'Precisão ao colocar a bola para o atacante' },
   { key: 'ataque',       label: 'Ataque',           abrev: 'Ata', dica: 'Potência e colocação da cortada' },
-  { key: 'defesa',       label: 'Defesa/Recepção',  abrev: 'Def', dica: 'Segura saque e cortada, bola controlada' },
+  { key: 'defesa',       label: 'Defesa e recepção', abrev: 'Def', dica: 'Recebe o saque e defende a cortada com a bola controlada' },
   { key: 'movimentacao', label: 'Movimentação',     abrev: 'Mov', dica: 'Posicionamento, cobertura e leitura de jogo' },
 ];
 
 export const NOTA_LABELS = ['Fraco', 'Regular', 'Bom', 'Muito bom', 'Excelente'];
+
+// Rótulos do nível geral (avaliação rápida), de 1 a 5. Uma lista só para todas as telas.
+export const NIVEL_LABELS = ['Iniciante', 'Básico', 'Intermediário', 'Avançado', 'Craque'];
 
 // Nota mínima em Levantamento para o jogador contar como levantador.
 export const MIN_LEVANTADOR = 3;
