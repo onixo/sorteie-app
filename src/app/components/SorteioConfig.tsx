@@ -196,16 +196,16 @@ export function SorteioConfig({ players, modo, inicial, onGenerateTeams, onBack 
           )}
         </div>
 
-        {/* Quem levanta bem (avaliação detalhada). É só uma tentativa, não há posição fixa. */}
+        {/* Quem levanta bem (avaliação detalhada): só informa, não é um alerta. É uma tentativa, não há posição fixa. */}
         {modo === 'detalhado' && (
           <div className={`rounded-xl px-4 py-3 border text-sm ${
             levantadores >= numTimes
               ? 'bg-[#1BAF8A]/10 border-[#1BAF8A]/30 text-[#1BAF8A]'
-              : 'bg-[#E0A526]/10 border-[#E0A526]/30 text-[#E0A526]'
+              : 'bg-[#1E8FD5]/10 border-[#1E8FD5]/30 text-[#7FB2DC]'
           }`}>
             {levantadores >= numTimes
-              ? `Vamos tentar separar quem levanta bem (nota 3 ou mais em Levantamento) em times diferentes. Na lista: ${levantadores}.`
-              : `Só ${levantadores} ${plural(levantadores, 'jogador tem', 'jogadores têm')} nota 3 ou mais em Levantamento, para ${numTimes} times. Sem o suficiente, os times saem só pelas notas.`}
+              ? `Quem levanta bem (nota 3 ou mais em Levantamento) fica em times diferentes sempre que possível. Na lista: ${levantadores}.`
+              : `Há ${levantadores} ${plural(levantadores, 'jogador', 'jogadores')} com nota 3 ou mais em Levantamento para ${numTimes} times. Os times serão montados pelo conjunto das notas.`}
           </div>
         )}
 
@@ -230,7 +230,7 @@ export function SorteioConfig({ players, modo, inicial, onGenerateTeams, onBack 
                 </span>
               </div>
               <p className="text-xs text-[#7FB2DC] leading-relaxed">
-                Busca times parelhos em nível e em gênero. Pode sobrar uma pequena diferença nos dois.
+                Monta times parelhos em nível e em gênero ao mesmo tempo.
               </p>
             </button>
 
@@ -251,7 +251,7 @@ export function SorteioConfig({ players, modo, inicial, onGenerateTeams, onBack 
                 </span>
               </div>
               <p className="text-xs text-[#7FB2DC] leading-relaxed">
-                Divide mulheres e homens do jeito mais igual possível entre os times, mesmo que o nível fique desigual.
+                Divide mulheres e homens do jeito mais igual possível entre os times. O nível é equilibrado dentro dessa divisão.
               </p>
             </button>
           </div>
