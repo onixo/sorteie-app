@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Minus, Plus, Shuffle, Scale, Venus, UserPlus } from 'lucide-react';
-import { Player, ModoSorteio } from '../types';
+import { Player, ModoSorteio, ModoClassificacao } from '../types';
+import { ehLevantador } from '../habilidades';
 import { HexBackground } from './HexBackground';
 
 interface SorteioConfigProps {
   players: Player[];
+  modo: ModoClassificacao | null;
   onGenerateTeams: (numTimes: number, jogadoresPorTime: number, modoSorteio: ModoSorteio, vagasLivres?: number) => Promise<void>;
   onBack: () => void;
 }
 
-export function SorteioConfig({ players, onGenerateTeams, onBack }: SorteioConfigProps) {
+export function SorteioConfig({ players, modo, onGenerateTeams, onBack }: SorteioConfigProps) {
   const [numTimes, setNumTimes] = useState(2);
   const [jogadoresPorTime, setJogadoresPorTime] = useState(3);
   const [modoSorteio, setModoSorteio] = useState<ModoSorteio>('equilibrado');
@@ -29,6 +31,9 @@ export function SorteioConfig({ players, onGenerateTeams, onBack }: SorteioConfi
   }, [podeAdicionarVagas]);
 
   const canGenerate = (players.length + vagasLivres) >= totalRequired && totalRequired > 0;
+
+  // Regra do modo detalhado: um levantador por time
+  const levantadores = players.filter(ehLevantador).length;
 
   const handleGenerate = async () => {
     if (!canGenerate || sorting) return;
@@ -165,6 +170,19 @@ export function SorteioConfig({ players, onGenerateTeams, onBack }: SorteioConfi
             </div>
           )}
         </div>
+
+        {/* Distribuição de quem tem boa nota em Levantamento (modo detalhado). Tentativa, sem posição fixa. */}
+        {modo === 'detalhado' && (
+          <div className={`rounded-xl px-4 py-3 border text-sm ${
+            levantadores >= numTimes
+              ? 'bg-[#1BAF8A]/10 border-[#1BAF8A]/30 text-[#1BAF8A]'
+              : 'bg-[#E0A526]/10 border-[#E0A526]/30 text-[#E0A526]'
+          }`}>
+            {levantadores >= numTimes
+              ? `Tenta espalhar entre os times quem tem Levantamento 3 ou mais (${levantadores} na lista).`
+              : `Só ${levantadores} jogador${levantadores !== 1 ? 'es' : ''} com Levantamento 3 ou mais para ${numTimes} times. Sem o suficiente, o sorteio segue só pelas habilidades.`}
+          </div>
+        )}
 
         {/* Modo de Sorteio */}
         <div className="bg-[#0F2035] rounded-xl p-6 border border-[#1E8FD5]/20">

@@ -1,5 +1,6 @@
 import { Share2, Copy, CheckCircle, XCircle, Scale, Venus } from 'lucide-react';
 import { ResultadoSorteio } from '../types';
+import { HABILIDADES, ehLevantador } from '../habilidades';
 import { HexBackground } from './HexBackground';
 
 interface TeamResultsProps {
@@ -9,7 +10,20 @@ interface TeamResultsProps {
 }
 
 export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) {
-  const { times, reservas, nivelEquilibrado, generoEquilibrado } = resultado;
+  const { times, reservas, nivelEquilibrado, generoEquilibrado, detalhado, levantadorPorTime } = resultado;
+
+  // Modo detalhado: times sem ninguém com Levantamento 3 ou mais, e a habilidade
+  // com maior diferença de média entre os times
+  const isSemLevantador = (time: ResultadoSorteio['times'][number]) => !time.jogadores.some(ehLevantador);
+  const timesSemLevantador = times.filter(isSemLevantador).length;
+
+  const maiorDiferenca = detalhado
+    ? HABILIDADES.map(({ key, label }) => {
+        const valores = times.map(t => t.habilidades?.[key] ?? 0);
+        return { label, dif: Math.max(...valores) - Math.min(...valores) };
+      }).sort((a, b) => b.dif - a.dif)[0]
+    : null;
+  const habilidadesEquilibradas = maiorDiferenca ? maiorDiferenca.dif <= 0.5 : true;
   const modoSorteio = resultado.config.modoSorteio;
   const teamColors = ['#1BAF8A', '#1E8FD5', '#1565A8', '#4A90C4', '#1BAF8A', '#1E8FD5'];
 
@@ -22,9 +36,10 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
   };
 
   const modoLabel = modoSorteio === 'genero' ? 'Prioridade de Gênero' : 'Equilibrado';
+  const classificacaoLabel = detalhado ? 'Detalhada (5 habilidades)' : 'Rápida (nível 1-5)';
 
   const copyToClipboard = () => {
-    const header = `Modo de Sorteio: ${modoLabel}\n\n`;
+    const header = `Modo de Sorteio: ${modoLabel}\nClassificação: ${classificacaoLabel}\n\n`;
     const text = times.map((time) => {
       const jogadores = time.jogadores.map(p => `- ${p.nome}`).join('\n');
       return `${time.nome}\n${jogadores}`;
@@ -38,7 +53,7 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
   };
 
   const shareWhatsApp = () => {
-    const header = `*Modo de Sorteio: ${modoLabel}*\n\n`;
+    const header = `*Modo de Sorteio: ${modoLabel}*\nClassificação: ${classificacaoLabel}\n\n`;
     const text = times.map((time) => {
       const jogadores = time.jogadores.map(p => `- ${p.nome}`).join('\n');
       return `*${time.nome}*\n${jogadores}`;
@@ -64,13 +79,13 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
           ← Voltar
         </button>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Bull Analytics" className="w-10 h-10 object-contain" />
-            <h1 className="text-[#F0F4FF]">Times Sorteados</h1>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src="/logo.png" alt="Bull Analytics" className="w-10 h-10 object-contain shrink-0" />
+            <h1 className="text-[#F0F4FF] text-xl whitespace-nowrap truncate">Times Sorteados</h1>
           </div>
           <button
             onClick={onShuffle}
-            className="text-[#1BAF8A] hover:text-[#1BAF8A]/80 text-sm transition-colors"
+            className="text-[#1BAF8A] hover:text-[#1BAF8A]/80 text-sm transition-colors min-h-11 px-1 whitespace-nowrap shrink-0"
           >
             Sortear novamente
           </button>
@@ -97,6 +112,32 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
           Gênero {generoEquilibrado ? 'equilibrado' : 'desbalanceado'}
         </div>
 
+        {levantadorPorTime !== undefined && (
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+            levantadorPorTime
+              ? 'bg-[#1BAF8A]/15 text-[#1BAF8A] border border-[#1BAF8A]/30'
+              : 'bg-[#E0A526]/10 text-[#E0A526] border border-[#E0A526]/30'
+          }`}>
+            {levantadorPorTime ? <CheckCircle size={12} /> : <XCircle size={12} />}
+            {levantadorPorTime
+              ? 'Levantamento distribuído'
+              : `${timesSemLevantador} time${timesSemLevantador !== 1 ? 's' : ''} sem Levantamento 3+`}
+          </div>
+        )}
+
+        {detalhado && maiorDiferenca && (
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+            habilidadesEquilibradas
+              ? 'bg-[#1BAF8A]/15 text-[#1BAF8A] border border-[#1BAF8A]/30'
+              : 'bg-[#E0A526]/10 text-[#E0A526] border border-[#E0A526]/30'
+          }`}>
+            {habilidadesEquilibradas ? <CheckCircle size={12} /> : <XCircle size={12} />}
+            {habilidadesEquilibradas
+              ? 'Habilidades equilibradas'
+              : `Habilidades: ${maiorDiferenca.label} difere ${maiorDiferenca.dif.toFixed(1).replace('.', ',')}`}
+          </div>
+        )}
+
         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
           modoSorteio === 'genero'
             ? 'bg-[#1E8FD5]/15 text-[#1E8FD5] border border-[#1E8FD5]/30'
@@ -121,7 +162,12 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
             {/* Team Header */}
             <div className="p-4 border-b border-[#1E8FD5]/10">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-[#F0F4FF]">{time.nome}</h3>
+                <h3 className="text-[#F0F4FF]">
+                  {time.nome}
+                  {levantadorPorTime !== undefined && isSemLevantador(time) && (
+                    <span className="ml-2 text-[10px] font-normal text-[#E0A526] border border-[#E0A526]/40 rounded px-1">sem Lev 3+</span>
+                  )}
+                </h3>
                 <div className="flex gap-2">
                   <span
                     className="px-2 py-1 rounded text-xs font-medium"
@@ -130,7 +176,9 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
                       color: teamColors[idx % teamColors.length]
                     }}
                   >
-                    {time.totalNivel} pts
+                    {detalhado
+                      ? `média ${(time.totalNivel / Math.max(1, time.jogadores.length)).toFixed(1).replace('.', ',')}`
+                      : `${time.totalNivel} pts`}
                   </span>
                 </div>
               </div>
@@ -139,6 +187,27 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
                 <span>♀ {time.femininos}</span>
                 {time.outros > 0 && <span>⚥ {time.outros}</span>}
               </div>
+
+              {/* Média por habilidade do time (modo detalhado) */}
+              {time.habilidades && (
+                <div className="grid grid-cols-5 gap-2 mt-3">
+                  {HABILIDADES.map(({ key, abrev }) => (
+                    <div key={key} className="text-center">
+                      <div className="text-xs text-[#F0F4FF] tabular-nums mb-1">{time.habilidades![key].toFixed(1)}</div>
+                      <div className="h-1 rounded-full bg-[#0D2847] overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${(time.habilidades![key] / 5) * 100}%`,
+                            backgroundColor: teamColors[idx % teamColors.length],
+                          }}
+                        />
+                      </div>
+                      <div className="text-[10px] text-[#4A90C4] mt-1">{abrev}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Player List */}
@@ -158,6 +227,9 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
                       ? <span className="text-[10px] text-[#4A90C4] border border-[#4A90C4]/40 rounded px-1">LIVRE</span>
                       : <span className="text-[#4A90C4] text-sm">{getGenderIcon(player.genero)}</span>
                     }
+                    {ehLevantador(player) && (
+                      <span className="text-[10px] text-[#1E8FD5] border border-[#1E8FD5]/40 rounded px-1">LEV</span>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((level) => (

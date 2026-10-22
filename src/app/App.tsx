@@ -8,6 +8,7 @@ import { TeamResults } from './components/TeamResults';
 import { Toast } from './components/Toast';
 import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio } from './types';
 import { getPlayers, createPlayer, deletePlayer, updatePlayer, clearPlayers, sortear } from './services/api';
+import { modoDaLista } from './habilidades';
 
 type Screen = 'list' | 'config' | 'results';
 
@@ -21,6 +22,9 @@ export default function App() {
   const [vagasLivresCount, setVagasLivresCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Modo de classificação da lista (definido pelo primeiro jogador; null = lista vazia)
+  const modoLista = modoDaLista(players);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -123,6 +127,7 @@ export default function App() {
         <>
           <PlayerList
             players={players}
+            modo={modoLista}
             loading={false}
             onAddPlayer={() => setIsAddPlayerOpen(true)}
             onImportPlayers={() => setIsImportOpen(true)}
@@ -134,11 +139,13 @@ export default function App() {
             isOpen={isAddPlayerOpen}
             onClose={() => setIsAddPlayerOpen(false)}
             onAdd={addPlayer}
+            modoLista={modoLista}
           />
           <ImportPlayersSheet
             isOpen={isImportOpen}
             onClose={() => setIsImportOpen(false)}
             onAdd={addPlayer}
+            modoLista={modoLista}
           />
           <EditPlayerSheet
             player={editingPlayer}
@@ -160,6 +167,7 @@ export default function App() {
       {screen === 'config' && (
         <SorteioConfig
           players={players}
+          modo={modoLista}
           onGenerateTeams={generateTeams}
           onBack={() => setScreen('list')}
         />

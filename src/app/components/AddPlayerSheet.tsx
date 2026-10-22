@@ -1,32 +1,49 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { NewPlayerPayload } from '../types';
+import { NewPlayerPayload, Habilidades, ModoClassificacao } from '../types';
+import { HABILIDADES, habilidadesCompletas, calcularNivel } from '../habilidades';
+import { HabilidadesInput } from './HabilidadesInput';
 
 interface AddPlayerSheetProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (payload: NewPlayerPayload) => Promise<void>;
+  modoLista: ModoClassificacao | null; // modo já definido pela lista; null = lista vazia (usuário escolhe)
 }
 
-export function AddPlayerSheet({ isOpen, onClose, onAdd }: AddPlayerSheetProps) {
+export function AddPlayerSheet({ isOpen, onClose, onAdd, modoLista }: AddPlayerSheetProps) {
   const [nome, setNome] = useState('');
   const [genero, setGenero] = useState<'M' | 'F' | 'O'>('M');
   const [nivel, setNivel] = useState(2);
+  const [modo, setModo] = useState<ModoClassificacao>(modoLista ?? 'simples');
+  const [habilidades, setHabilidades] = useState<Partial<Habilidades>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const skillLabels = ['Iniciante', 'Praticante', 'Intermediário', 'Avançado', 'Expert'];
 
+  // Ao abrir, segue o modo da lista (ou "simples" se a lista estiver vazia)
+  useEffect(() => {
+    if (isOpen) setModo(modoLista ?? 'simples');
+  }, [isOpen, modoLista]);
+
+  const detalhadoPronto = modo !== 'detalhado' || habilidadesCompletas(habilidades);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome.trim() || submitting) return;
+    if (!nome.trim() || submitting || !detalhadoPronto) return;
 
     try {
       setSubmitting(true);
-      await onAdd({ nome: nome.trim(), genero, nivel });
+      if (modo === 'detalhado' && habilidadesCompletas(habilidades)) {
+        await onAdd({ nome: nome.trim(), genero, nivel: calcularNivel(habilidades), habilidades });
+      } else {
+        await onAdd({ nome: nome.trim(), genero, nivel });
+      }
       // Reset form on success
       setNome('');
       setGenero('M');
       setNivel(2);
+      setHabilidades({});
       onClose();
     } finally {
       setSubmitting(false);
@@ -44,7 +61,7 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd }: AddPlayerSheetProps) 
       />
 
       {/* Bottom Sheet */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-[#0D2847] rounded-t-3xl border-t border-[#1E8FD5]/30 shadow-2xl animate-in slide-in-from-bottom duration-300">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-[#0D2847] rounded-t-3xl border-t border-[#1E8FD5]/30 shadow-2xl max-h-[92dvh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
         <div className="max-w-md mx-auto p-6">
           {/* Handle Bar */}
           <div className="w-12 h-1 bg-[#4A90C4]/40 rounded-full mx-auto mb-6" />
@@ -62,6 +79,30 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd }: AddPlayerSheetProps) 
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Classificação: escolha só com lista vazia; depois a lista define o modo */}
+            {modoLista === null && (
+              <div>
+                <label className="block text-[#4A90C4] text-sm mb-3">Classificação</label>
+                <div className="flex gap-2">
+                  {([['simples', 'Rápido'], ['detalhado', 'Detalhado']] as const).map(([m, label]) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setModo(m)}
+                      disabled={submitting}
+                      className={`flex-1 py-3 rounded-lg transition-all text-sm ${
+                        modo === m
+                          ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-medium'
+                          : 'bg-[#162844] text-[#4A90C4] hover:bg-[#1E8FD5]/10'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Name Input */}
             <div>
               <label className="block text-[#4A90C4] text-sm mb-2">Nome</label>
@@ -102,40 +143,58 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd }: AddPlayerSheetProps) 
               </div>
             </div>
 
-            {/* Skill Level */}
-            <div>
-              <label className="block text-[#4A90C4] text-sm mb-3">
-                Nível: <span className="text-[#1BAF8A]">{skillLabels[nivel - 1]}</span>
-              </label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setNivel(lvl)}
-                    disabled={submitting}
-                    className={`flex-1 h-16 rounded-lg transition-all relative overflow-hidden ${
-                      lvl <= nivel
-                        ? 'bg-gradient-to-t from-[#1BAF8A] to-[#1E8FD5]'
-                        : 'bg-[#162844]'
-                    }`}
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center text-sm font-medium">
-                      {lvl <= nivel ? (
-                        <span className="text-[#0A1628]">{lvl}</span>
-                      ) : (
-                        <span className="text-[#4A90C4]/50">{lvl}</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
+            {/* Skill Level (rápido) ou Habilidades (detalhado) */}
+            {modo === 'simples' ? (
+              <div>
+                <label className="block text-[#4A90C4] text-sm mb-3">
+                  Nível: <span className="text-[#1BAF8A]">{skillLabels[nivel - 1]}</span>
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setNivel(lvl)}
+                      disabled={submitting}
+                      className={`flex-1 h-16 rounded-lg transition-all relative overflow-hidden ${
+                        lvl <= nivel
+                          ? 'bg-gradient-to-t from-[#1BAF8A] to-[#1E8FD5]'
+                          : 'bg-[#162844]'
+                      }`}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center text-sm font-medium">
+                        {lvl <= nivel ? (
+                          <span className="text-[#0A1628]">{lvl}</span>
+                        ) : (
+                          <span className="text-[#4A90C4]/50">{lvl}</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-[#4A90C4] text-sm mb-3">Habilidades</label>
+                <HabilidadesInput
+                  value={habilidades}
+                  onChange={(key, nota) => setHabilidades(prev => ({ ...prev, [key]: nota }))}
+                  disabled={submitting}
+                />
+              </div>
+            )}
+
+            {/* O que falta para liberar o botão */}
+            {modo === 'detalhado' && !detalhadoPronto && (
+              <p className="text-xs text-[#ff6b86] -mt-3">
+                Falta nota em: {HABILIDADES.filter(h => habilidades[h.key] === undefined).map(h => h.label).join(', ')}
+              </p>
+            )}
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={!nome.trim() || submitting}
+              disabled={!nome.trim() || submitting || !detalhadoPronto}
               id="btn-confirm-add-player"
               className="w-full py-4 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#4A90C4] text-[#0A1628] font-medium rounded-xl transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >

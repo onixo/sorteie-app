@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Users, Plus, Loader2, ClipboardList, Trash2, Pencil } from 'lucide-react';
-import { Player } from '../types';
+import { Player, ModoClassificacao } from '../types';
+import { HABILIDADES } from '../habilidades';
 import { HexBackground } from './HexBackground';
 
 interface PlayerListProps {
   players: Player[];
+  modo: ModoClassificacao | null;
   loading: boolean;
   onAddPlayer: () => void;
   onImportPlayers: () => void;
@@ -13,7 +15,7 @@ interface PlayerListProps {
   onClearPlayers: () => Promise<void>;
 }
 
-export function PlayerList({ players, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onEditPlayer, onClearPlayers }: PlayerListProps) {
+export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onEditPlayer, onClearPlayers }: PlayerListProps) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
 
@@ -93,6 +95,12 @@ export function PlayerList({ players, loading, onAddPlayer, onImportPlayers, onR
             )}
           </div>
         </div>
+
+        {modo && (
+          <p className="text-[#4A90C4] text-xs text-center mt-2">
+            Classificação: {modo === 'detalhado' ? 'Detalhada (5 habilidades)' : 'Rápida (nível 1-5)'}
+          </p>
+        )}
       </div>
 
       {/* Player Cards */}
@@ -148,6 +156,16 @@ export function PlayerList({ players, loading, onAddPlayer, onImportPlayers, onR
                     />
                   ))}
                 </div>
+                {player.habilidades && (
+                  <div className="grid grid-cols-5 gap-1 mt-2 text-center">
+                    {HABILIDADES.map(({ key, abrev }) => (
+                      <div key={key}>
+                        <div className="text-[10px] leading-none text-[#4A90C4]">{abrev}</div>
+                        <div className="text-xs mt-1 leading-none text-[#F0F4FF] tabular-nums">{player.habilidades![key]}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Editar e Remover */}
