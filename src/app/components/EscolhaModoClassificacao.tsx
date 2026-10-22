@@ -20,7 +20,7 @@ export function EscolhaModoClassificacao({ onEscolher }: EscolhaModoClassificaca
           <span className="font-medium text-sm text-[#F0F4FF]">Avaliação rápida</span>
         </div>
         <p className="text-xs text-[#7FB2DC] leading-relaxed">
-          Um nível de 1 a 5 para cada jogador. Mais rápido de preencher.
+          Um nível de 1 a 5 para cada jogador.
         </p>
       </button>
 
@@ -34,7 +34,7 @@ export function EscolhaModoClassificacao({ onEscolher }: EscolhaModoClassificaca
           <span className="font-medium text-sm text-[#F0F4FF]">Avaliação detalhada</span>
         </div>
         <p className="text-xs text-[#7FB2DC] leading-relaxed">
-          Nota de 1 a 5 em saque, levantamento, ataque, defesa e movimentação. Demora um pouco mais.
+          Nota de 1 a 5 em saque, levantamento, ataque, defesa e movimentação. Os times saem equilibrados pelo conjunto das habilidades.
         </p>
       </button>
     </div>
