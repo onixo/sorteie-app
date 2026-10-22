@@ -4,6 +4,7 @@ import { NewPlayerPayload, Habilidades, ModoClassificacao } from '../types';
 import { HABILIDADES, habilidadesCompletas, calcularNivel } from '../habilidades';
 import { HabilidadesInput } from './HabilidadesInput';
 import { GeneroIcon } from './GeneroIcon';
+import { EscolhaModoClassificacao } from './EscolhaModoClassificacao';
 
 interface AddPlayerSheetProps {
   isOpen: boolean;
@@ -16,16 +17,18 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd, modoLista }: AddPlayerS
   const [nome, setNome] = useState('');
   const [genero, setGenero] = useState<'M' | 'F' | 'O'>('M');
   const [nivel, setNivel] = useState(2);
-  const [modo, setModo] = useState<ModoClassificacao>(modoLista ?? 'simples');
+  // Lista com jogadores: o modo é o da lista. Lista vazia: pergunta antes do formulário.
+  const [modoEscolhido, setModoEscolhido] = useState<ModoClassificacao | null>(null);
+  const modo = modoLista ?? modoEscolhido;
   const [habilidades, setHabilidades] = useState<Partial<Habilidades>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const skillLabels = ['Iniciante', 'Praticante', 'Intermediário', 'Avançado', 'Expert'];
 
-  // Ao abrir, segue o modo da lista (ou "simples" se a lista estiver vazia)
+  // Cada vez que abre com a lista vazia, pergunta o modo de novo
   useEffect(() => {
-    if (isOpen) setModo(modoLista ?? 'simples');
-  }, [isOpen, modoLista]);
+    if (isOpen) setModoEscolhido(null);
+  }, [isOpen]);
 
   const detalhadoPronto = modo !== 'detalhado' || habilidadesCompletas(habilidades);
 
@@ -79,136 +82,135 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd, modoLista }: AddPlayerS
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Classificação: escolha só com lista vazia; depois a lista define o modo */}
-            {modoLista === null && (
-              <div>
-                <label className="block text-[#4A90C4] text-sm mb-3">Classificação</label>
-                <div className="flex gap-2">
-                  {([['simples', 'Rápido'], ['detalhado', 'Detalhado']] as const).map(([m, label]) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setModo(m)}
-                      disabled={submitting}
-                      className={`flex-1 py-3 rounded-lg transition-all text-sm ${
-                        modo === m
-                          ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-medium'
-                          : 'bg-[#162844] text-[#4A90C4] hover:bg-[#1E8FD5]/10'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Name Input */}
-            <div>
-              <label className="block text-[#4A90C4] text-sm mb-2">Nome</label>
-              <input
-                type="text"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Digite o nome"
-                className="w-full bg-transparent border-b-2 border-[#1E8FD5]/30 focus:border-[#1E8FD5] text-[#F0F4FF] px-2 py-3 outline-none transition-colors placeholder:text-[#4A90C4]/50"
-                autoFocus
-                disabled={submitting}
-              />
+          {modo === null ? (
+            <div className="space-y-4">
+              <p className="text-[#4A90C4] text-sm">
+                Como quer classificar os jogadores? A escolha vale para toda a lista.
+              </p>
+              <EscolhaModoClassificacao onEscolher={setModoEscolhido} />
             </div>
-
-            {/* Gender Selector */}
-            <div>
-              <label className="block text-[#4A90C4] text-sm mb-3">Gênero</label>
-              <div className="flex gap-2">
-                {(['M', 'F', 'O'] as const).map((g) => {
-                  const labels = { M: 'Masculino', F: 'Feminino', O: 'Outro' };
-                  return (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setGenero(g)}
-                      disabled={submitting}
-                      className={`flex-1 py-3 rounded-lg transition-all text-sm flex items-center justify-center gap-1 ${
-                        genero === g
-                          ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-medium'
-                          : 'bg-[#162844] text-[#4A90C4] hover:bg-[#1E8FD5]/10'
-                      }`}
-                    >
-                      <GeneroIcon genero={g} size={16} decorativo />
-                      <span>{labels[g]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Skill Level (rápido) ou Habilidades (detalhado) */}
-            {modo === 'simples' ? (
-              <div>
-                <label className="block text-[#4A90C4] text-sm mb-3">
-                  Nível: <span className="text-[#1BAF8A]">{skillLabels[nivel - 1]}</span>
-                </label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((lvl) => (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => setNivel(lvl)}
-                      disabled={submitting}
-                      className={`flex-1 h-16 rounded-lg transition-all relative overflow-hidden ${
-                        lvl <= nivel
-                          ? 'bg-gradient-to-t from-[#1BAF8A] to-[#1E8FD5]'
-                          : 'bg-[#162844]'
-                      }`}
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center text-sm font-medium">
-                        {lvl <= nivel ? (
-                          <span className="text-[#0A1628]">{lvl}</span>
-                        ) : (
-                          <span className="text-[#4A90C4]/50">{lvl}</span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Lista vazia: mostra o modo escolhido, com atalho para trocar */}
+              {modoLista === null && (
+                <div className="flex items-center justify-between text-xs text-[#4A90C4] -mt-2">
+                  <span>Classificação: {modo === 'detalhado' ? 'Detalhada (5 habilidades)' : 'Rápida (nível 1-5)'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setModoEscolhido(null)}
+                    className="text-[#1E8FD5] underline underline-offset-2 min-h-11 px-2 -my-2"
+                  >
+                    Trocar
+                  </button>
                 </div>
-              </div>
-            ) : (
+              )}
+
+              {/* Name Input */}
               <div>
-                <label className="block text-[#4A90C4] text-sm mb-3">Habilidades</label>
-                <HabilidadesInput
-                  value={habilidades}
-                  onChange={(key, nota) => setHabilidades(prev => ({ ...prev, [key]: nota }))}
+                <label className="block text-[#4A90C4] text-sm mb-2">Nome</label>
+                <input
+                  type="text"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Digite o nome"
+                  className="w-full bg-transparent border-b-2 border-[#1E8FD5]/30 focus:border-[#1E8FD5] text-[#F0F4FF] px-2 py-3 outline-none transition-colors placeholder:text-[#4A90C4]/50"
+                  autoFocus
                   disabled={submitting}
                 />
               </div>
-            )}
 
-            {/* O que falta para liberar o botão */}
-            {modo === 'detalhado' && !detalhadoPronto && (
-              <p className="text-xs text-[#ff6b86] -mt-3">
-                Falta nota em: {HABILIDADES.filter(h => habilidades[h.key] === undefined).map(h => h.label).join(', ')}
-              </p>
-            )}
+              {/* Gender Selector */}
+              <div>
+                <label className="block text-[#4A90C4] text-sm mb-3">Gênero</label>
+                <div className="flex gap-2">
+                  {(['M', 'F', 'O'] as const).map((g) => {
+                    const labels = { M: 'Masculino', F: 'Feminino', O: 'Outro' };
+                    return (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setGenero(g)}
+                        disabled={submitting}
+                        className={`flex-1 py-3 rounded-lg transition-all text-sm flex items-center justify-center gap-1 ${
+                          genero === g
+                            ? 'bg-gradient-to-r from-[#1BAF8A] to-[#1E8FD5] text-[#0A1628] font-medium'
+                            : 'bg-[#162844] text-[#4A90C4] hover:bg-[#1E8FD5]/10'
+                        }`}
+                      >
+                        <GeneroIcon genero={g} size={16} decorativo />
+                        <span>{labels[g]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={!nome.trim() || submitting || !detalhadoPronto}
-              id="btn-confirm-add-player"
-              className="w-full py-4 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#4A90C4] text-[#0A1628] font-medium rounded-xl transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Salvando...
-                </>
+              {/* Skill Level (rápido) ou Habilidades (detalhado) */}
+              {modo === 'simples' ? (
+                <div>
+                  <label className="block text-[#4A90C4] text-sm mb-3">
+                    Nível: <span className="text-[#1BAF8A]">{skillLabels[nivel - 1]}</span>
+                  </label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((lvl) => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setNivel(lvl)}
+                        disabled={submitting}
+                        className={`flex-1 h-16 rounded-lg transition-all relative overflow-hidden ${
+                          lvl <= nivel
+                            ? 'bg-gradient-to-t from-[#1BAF8A] to-[#1E8FD5]'
+                            : 'bg-[#162844]'
+                        }`}
+                      >
+                        <div className="absolute inset-0 flex items-center justify-center text-sm font-medium">
+                          {lvl <= nivel ? (
+                            <span className="text-[#0A1628]">{lvl}</span>
+                          ) : (
+                            <span className="text-[#4A90C4]/50">{lvl}</span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ) : (
-                'Adicionar'
+                <div>
+                  <label className="block text-[#4A90C4] text-sm mb-3">Habilidades</label>
+                  <HabilidadesInput
+                    value={habilidades}
+                    onChange={(key, nota) => setHabilidades(prev => ({ ...prev, [key]: nota }))}
+                    disabled={submitting}
+                  />
+                </div>
               )}
-            </button>
-          </form>
+
+              {/* O que falta para liberar o botão */}
+              {modo === 'detalhado' && !detalhadoPronto && (
+                <p className="text-xs text-[#ff6b86] -mt-3">
+                  Falta nota em: {HABILIDADES.filter(h => habilidades[h.key] === undefined).map(h => h.label).join(', ')}
+                </p>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={!nome.trim() || submitting || !detalhadoPronto}
+                id="btn-confirm-add-player"
+                className="w-full py-4 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#4A90C4] text-[#0A1628] font-medium rounded-xl transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Adicionar'
+                )}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </>
