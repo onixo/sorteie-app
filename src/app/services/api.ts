@@ -1,7 +1,10 @@
-import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio } from '../types';
+import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ElencoItem } from '../types';
 import { sortearTimes } from './sorteio';
+import { normalizarNome } from '../elenco';
+import { calcularNivel } from '../habilidades';
 
 const STORAGE_KEY = 'sorteie_players';
+const ELENCO_KEY = 'sorteie_elenco';
 
 function loadPlayers(): Player[] {
   try {
@@ -13,6 +16,59 @@ function loadPlayers(): Player[] {
 
 function savePlayers(players: Player[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
+}
+
+// ─── Elenco (notas lembradas entre as semanas, por nome normalizado) ──────────
+
+function loadElenco(): ElencoItem[] {
+  try {
+    const dados = JSON.parse(localStorage.getItem(ELENCO_KEY) ?? '[]');
+    return Array.isArray(dados) ? dados : [];
+  } catch {
+    return [];
+  }
+}
+
+// Grava/atualiza o jogador no elenco. Quando o nome foi corrigido numa edição,
+// remove também a entrada do nome anterior para não deixar registro órfão.
+// Falha de gravação do elenco não pode impedir o cadastro do jogador.
+function upsertElenco(player: NewPlayerPayload, nomeAnterior?: string): void {
+  try {
+    const chaveNova = normalizarNome(player.nome);
+    const chaves = new Set([chaveNova]);
+    if (nomeAnterior) chaves.add(normalizarNome(nomeAnterior));
+    const elenco = loadElenco();
+
+    // Cadastro sem habilidades (modo Rápido) não apaga as 5 notas já guardadas enquanto o
+    // nível continuar o mesmo. Se o nível mudou, as notas guardadas estão desatualizadas.
+    const existente =
+      elenco.find(i => normalizarNome(i.nome) === chaveNova) ??
+      (nomeAnterior ? elenco.find(i => normalizarNome(i.nome) === normalizarNome(nomeAnterior)) : undefined);
+    const habilidades =
+      player.habilidades ??
+      (existente?.habilidades && calcularNivel(existente.habilidades) === player.nivel
+        ? existente.habilidades
+        : undefined);
+
+    const item: ElencoItem = {
+      nome: player.nome,
+      genero: player.genero,
+      nivel: player.nivel,
+      ...(habilidades ? { habilidades } : {}),
+    };
+    const resto = elenco.filter(i => !chaves.has(normalizarNome(i.nome)));
+    localStorage.setItem(ELENCO_KEY, JSON.stringify([...resto, item]));
+  } catch (err) {
+    console.warn('Não foi possível salvar o jogador no elenco.', err);
+  }
+}
+
+export async function getElenco(): Promise<ElencoItem[]> {
+  return loadElenco();
+}
+
+export async function clearElenco(): Promise<void> {
+  localStorage.removeItem(ELENCO_KEY);
 }
 
 function nextId(players: Player[]): number {
@@ -33,6 +89,7 @@ export async function createPlayer(payload: NewPlayerPayload): Promise<Player> {
     criado_em: new Date().toLocaleString('pt-BR'),
   };
   savePlayers([...players, player]);
+  upsertElenco(player);
   return player;
 }
 
@@ -48,9 +105,12 @@ export async function restorePlayer(player: Player): Promise<void> {
 
 export async function updatePlayer(id: number, payload: NewPlayerPayload): Promise<Player> {
   const players = loadPlayers();
+  const nomeAnterior = players.find(p => p.id === id)?.nome;
   const updated = players.map(p => p.id === id ? { ...p, ...payload } : p);
   savePlayers(updated);
-  return updated.find(p => p.id === id)!;
+  const atualizado = updated.find(p => p.id === id)!;
+  upsertElenco(atualizado, nomeAnterior);
+  return atualizado;
 }
 
 export async function clearPlayers(): Promise<void> {

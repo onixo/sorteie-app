@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Loader2, ClipboardList, ChevronLeft, ChevronDown, Clipboard, Zap, SlidersHorizontal } from 'lucide-react';
-import { NewPlayerPayload, Habilidades, ModoClassificacao } from '../types';
+import { NewPlayerPayload, Habilidades, ModoClassificacao, ElencoItem } from '../types';
 import { HABILIDADES, habilidadesCompletas, calcularNivel } from '../habilidades';
-import { normalizarNome } from '../elenco';
+import { normalizarNome, indexarElenco } from '../elenco';
 import { HabilidadesInput } from './HabilidadesInput';
 
 interface ImportPlayersSheetProps {
@@ -11,6 +11,7 @@ interface ImportPlayersSheetProps {
   onAddMany: (payloads: NewPlayerPayload[]) => Promise<number>; // retorna quantos foram salvos
   modoLista: ModoClassificacao | null; // modo já definido pela lista; null = lista vazia (usuário escolhe)
   nomesExistentes: string[]; // nomes já na lista, para avisar de duplicados no preview
+  elenco: ElencoItem[]; // jogadores já avaliados em semanas anteriores
 }
 
 interface PendingPlayer {
@@ -18,6 +19,7 @@ interface PendingPlayer {
   genero: 'M' | 'F' | 'O' | null;
   nivel: number | null;
   habilidades: Partial<Habilidades>;
+  preenchidoModo?: ModoClassificacao; // modo em que o elenco já foi aplicado a este jogador
 }
 
 type Step = 'paste' | 'preview' | 'modo' | 'configure';
@@ -60,7 +62,7 @@ function isComplete(p: PendingPlayer, modo: ModoClassificacao): boolean {
   return modo === 'detalhado' ? habilidadesCompletas(p.habilidades) : p.nivel !== null;
 }
 
-export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nomesExistentes }: ImportPlayersSheetProps) {
+export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nomesExistentes, elenco }: ImportPlayersSheetProps) {
   const [step, setStep] = useState<Step>('paste');
   const [modo, setModo] = useState<ModoClassificacao>('simples');
   const [text, setText] = useState('');
@@ -117,9 +119,28 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
     }
   };
 
+  // Preenche com o elenco quem já foi avaliado, sem sobrescrever o que o usuário já mexeu.
+  // Modo detalhado só aproveita as 5 notas se existirem no elenco (senão, só o gênero).
   const startConfigure = (m: ModoClassificacao) => {
+    const preenchidos = playersRef.current.map(p => {
+      if (p.preenchidoModo === m) return p;
+      const item = indice.get(normalizarNome(p.nome));
+      if (!item) return { ...p, preenchidoModo: m };
+      return {
+        ...p,
+        preenchidoModo: m,
+        genero: p.genero ?? item.genero,
+        nivel: m === 'simples' ? (p.nivel ?? item.nivel) : p.nivel,
+        habilidades:
+          m === 'detalhado' && Object.keys(p.habilidades).length === 0 && item.habilidades
+            ? { ...item.habilidades }
+            : p.habilidades,
+      };
+    });
+    commitPlayers(preenchidos);
     setModo(m);
-    setExpanded(m === 'detalhado' ? 0 : null);
+    const primeiroIncompleto = preenchidos.findIndex(p => !isComplete(p, m));
+    setExpanded(m === 'detalhado' && primeiroIncompleto !== -1 ? primeiroIncompleto : null);
     setStep('configure');
   };
 
@@ -188,6 +209,16 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
       return proximo === -1 ? null : proximo;
     });
   };
+
+  // Elenco: quem tem nota guardada para o modo atual (ou para o modo escolhido)
+  const indice = indexarElenco(elenco);
+  const temNotaNoElenco = (nome: string, m: ModoClassificacao): boolean => {
+    const item = indice.get(normalizarNome(nome));
+    return !!item && (m === 'simples' || !!item.habilidades);
+  };
+
+  const conhecidosNoPreview = players.filter(p => indice.has(normalizarNome(p.nome))).length;
+  const preenchidosDoElenco = players.filter(p => temNotaNoElenco(p.nome, modo)).length;
 
   const desfazerRemocao = () => {
     if (!removido) return;
@@ -372,6 +403,11 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                   <span className="text-[#1BAF8A] font-medium">{players.length}</span> nome{players.length !== 1 ? 's' : ''} detectado{players.length !== 1 ? 's' : ''}.
                   Corrija ou remova o que estiver errado:
                 </p>
+                {conhecidosNoPreview > 0 && (
+                  <p className="text-xs text-[#1BAF8A] mt-1">
+                    {conhecidosNoPreview} já {conhecidosNoPreview !== 1 ? 'conhecidos' : 'conhecido'}, {players.length - conhecidosNoPreview} {players.length - conhecidosNoPreview !== 1 ? 'novos' : 'novo'}.
+                  </p>
+                )}
                 {ignoradas > 0 && (
                   <p className="text-xs text-[#4A90C4]/90 mt-1">
                     {ignoradas} linha{ignoradas !== 1 ? 's' : ''} do texto ignorada{ignoradas !== 1 ? 's' : ''} (cabeçalho ou linha vazia).
@@ -396,7 +432,11 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                           vazio ? 'border-[#d4183d]/60' : alerta ? 'border-[#E0A526]/50' : 'border-[#1E8FD5]/20'
                         }`}
                       />
-                      {alerta && <span className="text-[11px] text-[#E0A526] shrink-0">{alerta}</span>}
+                      {alerta ? (
+                        <span className="text-[11px] text-[#E0A526] shrink-0">{alerta}</span>
+                      ) : indice.has(chaves[idx]) ? (
+                        <span className="text-[11px] text-[#1BAF8A] shrink-0">conhecido</span>
+                      ) : null}
                       <button
                         onClick={() => removeFromList(idx)}
                         className="text-[#4A90C4]/70 hover:text-[#d4183d] active:text-[#d4183d] transition-colors min-w-11 min-h-11 flex items-center justify-center shrink-0"
@@ -431,6 +471,11 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                 <span className="text-[#1BAF8A] font-medium">{players.length}</span> jogadores
                 detectados. Como quer classificar?
               </p>
+              {conhecidosNoPreview > 0 && (
+                <p className="text-xs text-[#1BAF8A] -mt-2">
+                  {conhecidosNoPreview} já {conhecidosNoPreview !== 1 ? 'estão' : 'está'} no elenco e {conhecidosNoPreview !== 1 ? 'vêm preenchidos' : 'vem preenchido'}.
+                </p>
+              )}
 
               <button
                 onClick={() => startConfigure('simples')}
@@ -468,6 +513,11 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                 <p className="text-[#4A90C4] text-sm">
                   <span className="text-[#1BAF8A] font-medium">{players.length}</span> jogadores. Defina o gênero e {modo === 'detalhado' ? 'as habilidades' : 'o nível'}:
                 </p>
+                {preenchidosDoElenco > 0 && (
+                  <p className="text-xs text-[#1BAF8A] mt-1">
+                    {preenchidosDoElenco} já {preenchidosDoElenco !== 1 ? 'vêm preenchidos' : 'vem preenchido'} do elenco. Revise se algo mudou.
+                  </p>
+                )}
               </div>
 
               {/* Lista scrollável */}
@@ -489,6 +539,9 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-[#4A90C4]/50 text-xs shrink-0">{idx + 1}.</span>
                           <span className="text-[#F0F4FF] font-medium truncate">{player.nome}</span>
+                          {temNotaNoElenco(player.nome, modo) && (
+                            <span className="text-[10px] text-[#1BAF8A] border border-[#1BAF8A]/40 rounded px-1 shrink-0">conhecido</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 ml-3 shrink-0">
                           {incomplete && (

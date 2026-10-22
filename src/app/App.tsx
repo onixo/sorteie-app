@@ -6,8 +6,8 @@ import { EditPlayerSheet } from './components/EditPlayerSheet';
 import { SorteioConfig } from './components/SorteioConfig';
 import { TeamResults } from './components/TeamResults';
 import { Toast } from './components/Toast';
-import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio } from './types';
-import { getPlayers, createPlayer, deletePlayer, restorePlayer, updatePlayer, clearPlayers, sortear } from './services/api';
+import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ElencoItem } from './types';
+import { getPlayers, createPlayer, deletePlayer, restorePlayer, updatePlayer, clearPlayers, getElenco, clearElenco, sortear } from './services/api';
 import { modoDaLista } from './habilidades';
 
 type Screen = 'list' | 'config' | 'results';
@@ -15,6 +15,7 @@ type Screen = 'list' | 'config' | 'results';
 export default function App() {
   const [screen, setScreen] = useState<Screen>('list');
   const [players, setPlayers] = useState<Player[]>([]);
+  const [elenco, setElenco] = useState<ElencoItem[]>([]);
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
@@ -34,14 +35,21 @@ export default function App() {
     setToast({ message, type, action });
   }, []);
 
+  // O elenco é gravado pela camada de dados a cada cadastro/edição; aqui só relemos para a tela
+  const refreshElenco = useCallback(() => {
+    getElenco().then(setElenco);
+  }, []);
+
   useEffect(() => {
     getPlayers().then(setPlayers);
-  }, []);
+    refreshElenco();
+  }, [refreshElenco]);
 
   const addPlayer = async (payload: NewPlayerPayload) => {
     try {
       const newPlayer = await createPlayer(payload);
       setPlayers(prev => [...prev, newPlayer]);
+      refreshElenco();
       showToast(`${newPlayer.nome} adicionado!`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao adicionar jogador.');
@@ -61,7 +69,10 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao adicionar jogadores.');
     }
-    if (created.length > 0) setPlayers(prev => [...prev, ...created]);
+    if (created.length > 0) {
+      setPlayers(prev => [...prev, ...created]);
+      refreshElenco();
+    }
     return created.length;
   };
 
@@ -90,6 +101,7 @@ export default function App() {
     try {
       const updated = await updatePlayer(id, payload);
       setPlayers(prev => prev.map(p => p.id === id ? updated : p));
+      refreshElenco();
       showToast(`${updated.nome} atualizado!`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao editar jogador.');
@@ -104,6 +116,16 @@ export default function App() {
       showToast('Lista limpa.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao limpar lista.');
+    }
+  };
+
+  const handleForgetElenco = async () => {
+    try {
+      await clearElenco();
+      setElenco([]);
+      showToast('Elenco esquecido.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao esquecer o elenco.');
     }
   };
 
@@ -177,6 +199,8 @@ export default function App() {
             onEditPlayer={setEditingPlayer}
             onClearPlayers={handleClearPlayers}
             onChangeMode={handleChangeMode}
+            elencoCount={elenco.length}
+            onForgetElenco={handleForgetElenco}
           />
           <AddPlayerSheet
             isOpen={isAddPlayerOpen}
@@ -189,6 +213,7 @@ export default function App() {
             onClose={() => setIsImportOpen(false)}
             onAddMany={addPlayers}
             nomesExistentes={players.map(p => p.nome)}
+            elenco={elenco}
             modoLista={modoLista}
           />
           <EditPlayerSheet

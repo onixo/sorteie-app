@@ -14,9 +14,24 @@ interface PlayerListProps {
   onEditPlayer: (player: Player) => void;
   onClearPlayers: () => Promise<void>;
   onChangeMode: () => Promise<void>;
+  elencoCount: number;
+  onForgetElenco: () => Promise<void>;
 }
 
-export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onEditPlayer, onClearPlayers, onChangeMode }: PlayerListProps) {
+export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onEditPlayer, onClearPlayers, onChangeMode, elencoCount, onForgetElenco }: PlayerListProps) {
+  const [confirmEsquecer, setConfirmEsquecer] = useState(false);
+  const [esquecendo, setEsquecendo] = useState(false);
+
+  const handleConfirmEsquecer = async () => {
+    try {
+      setEsquecendo(true);
+      await onForgetElenco();
+    } finally {
+      setEsquecendo(false);
+      setConfirmEsquecer(false);
+    }
+  };
+
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [confirmTrocar, setConfirmTrocar] = useState(false);
@@ -140,6 +155,43 @@ export function PlayerList({ players, modo, loading, onAddPlayer, onImportPlayer
                 className="text-sm text-[#ff6b86] font-medium min-h-11 px-2"
               >
                 {trocando ? 'Limpando...' : 'Limpar e trocar'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Elenco salvo: notas lembradas entre as semanas */}
+        {elencoCount > 0 && !confirmEsquecer && (
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-[#4A90C4] text-xs">
+              Elenco salvo: {elencoCount} jogador{elencoCount !== 1 ? 'es' : ''}
+            </p>
+            <button
+              onClick={() => setConfirmEsquecer(true)}
+              className="text-xs text-[#1E8FD5] underline underline-offset-2 min-h-11 px-2 -my-2"
+            >
+              Esquecer
+            </button>
+          </div>
+        )}
+        {elencoCount > 0 && confirmEsquecer && (
+          <div className="mt-2 bg-[#d4183d]/10 border border-[#d4183d]/40 rounded-xl px-4 py-3">
+            <p className="text-xs text-[#ff6b86] mb-2">
+              Esquecer os {elencoCount} jogador{elencoCount !== 1 ? 'es' : ''} do elenco? As notas guardadas serão apagadas. A lista atual não muda.
+            </p>
+            <div className="flex items-center justify-end gap-4">
+              <button
+                onClick={() => setConfirmEsquecer(false)}
+                className="text-sm text-[#4A90C4] hover:text-[#F0F4FF] min-h-11 px-2"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmEsquecer}
+                disabled={esquecendo}
+                className="text-sm text-[#ff6b86] font-medium min-h-11 px-2"
+              >
+                {esquecendo ? 'Esquecendo...' : 'Esquecer elenco'}
               </button>
             </div>
           </div>

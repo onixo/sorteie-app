@@ -22,6 +22,15 @@ export interface Player {
   criado_em?: string;
 }
 
+// Elenco: jogador já avaliado, lembrado entre as semanas e encontrado pelo nome normalizado
+// (sem acento, sem diferença de maiúsculas). Guarda as notas do último cadastro/edição.
+export interface ElencoItem {
+  nome: string;
+  genero: 'M' | 'F' | 'O';
+  nivel: number;
+  habilidades?: Habilidades; // presente quando foi avaliado no modo detalhado
+}
+
 // Payload para criar um novo jogador (sem id nem timestamp)
 export type NewPlayerPayload = Pick<Player, 'nome' | 'genero' | 'nivel' | 'habilidades'>;
 
