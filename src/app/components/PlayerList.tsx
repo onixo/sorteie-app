@@ -62,7 +62,7 @@ export function PlayerList({
           <img src="/favicon.png" alt="" className="w-10 h-10 object-contain shrink-0" />
           <h1 className="text-[#F0F4FF] text-xl font-semibold tracking-widest uppercase">Sorteie</h1>
           <span className="ml-auto flex items-center gap-1.5 text-[#7FB2DC] text-xs">
-            <img src="/logo.png" alt="" className="w-4 h-4 object-contain" />
+            <img src="/logo.png" alt="" className="h-6 w-auto" />
             Bull Analytics
           </span>
         </div>
