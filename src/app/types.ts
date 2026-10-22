@@ -19,6 +19,9 @@ export interface Player {
   genero: 'M' | 'F' | 'O';
   nivel: number; // 1=Iniciante, 2=Básico, 3=Intermediário, 4=Avançado, 5=Craque (rótulos em NIVEL_LABELS)
   habilidades?: Habilidades; // presente apenas no modo detalhado
+  // O organizador não conhece o jogador: só o gênero foi informado. `nivel` (e `habilidades`, no modo
+  // detalhado) guardam o valor neutro e, no sorteio, o jogador entra com o nível médio da lista.
+  desconhecido?: boolean;
   criado_em?: string;
 }
 
@@ -32,7 +35,7 @@ export interface ElencoItem {
 }
 
 // Payload para criar um novo jogador (sem id nem timestamp)
-export type NewPlayerPayload = Pick<Player, 'nome' | 'genero' | 'nivel' | 'habilidades'>;
+export type NewPlayerPayload = Pick<Player, 'nome' | 'genero' | 'nivel' | 'habilidades' | 'desconhecido'>;
 
 // ─── Time (resposta do POST /sorteio) ─────────────────────────────────────────
 

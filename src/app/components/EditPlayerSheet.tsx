@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { Player, NewPlayerPayload, Habilidades } from '../types';
-import { NIVEL_LABELS, habilidadesCompletas, calcularNivel } from '../habilidades';
+import { NIVEL_LABELS, NIVEL_PADRAO, habilidadesCompletas, habilidadesNeutras, calcularNivel } from '../habilidades';
 import { HabilidadesInput } from './HabilidadesInput';
 import { SeletorGenero } from './SeletorGenero';
 import { SeletorNivel } from './SeletorNivel';
+import { NaoConheco } from './NaoConheco';
 
 interface EditPlayerSheetProps {
   player: Player | null;
@@ -16,7 +17,8 @@ interface EditPlayerSheetProps {
 export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlayerSheetProps) {
   const [nome, setNome] = useState('');
   const [genero, setGenero] = useState<'M' | 'F' | 'O'>('M');
-  const [nivel, setNivel] = useState(2);
+  const [nivel, setNivel] = useState<number | null>(2);
+  const [desconhecido, setDesconhecido] = useState(false);
   const [habilidades, setHabilidades] = useState<Partial<Habilidades>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -27,8 +29,10 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
     if (player) {
       setNome(player.nome);
       setGenero(player.genero);
-      setNivel(player.nivel);
-      setHabilidades(player.habilidades ?? {});
+      // Quem era "não conheço" abre sem nota: se a pessoa desligar a marca, precisa avaliar de verdade
+      setDesconhecido(!!player.desconhecido);
+      setNivel(player.desconhecido ? null : player.nivel);
+      setHabilidades(player.desconhecido ? {} : (player.habilidades ?? {}));
     }
   }, [player]);
 
@@ -40,17 +44,23 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
     return () => window.removeEventListener('keydown', aoTeclar);
   }, [isOpen, onClose]);
 
-  const detalhadoPronto = !detalhado || habilidadesCompletas(habilidades);
+  const detalhadoPronto = !detalhado || desconhecido || habilidadesCompletas(habilidades);
+  const nivelPronto = detalhado || desconhecido || nivel !== null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome.trim() || submitting || !player || !detalhadoPronto) return;
+    if (!nome.trim() || submitting || !player || !detalhadoPronto || !nivelPronto) return;
     try {
       setSubmitting(true);
-      if (detalhado && habilidadesCompletas(habilidades)) {
-        await onUpdate(player.id, { nome: nome.trim(), genero, nivel: calcularNivel(habilidades), habilidades });
-      } else {
-        await onUpdate(player.id, { nome: nome.trim(), genero, nivel });
+      if (desconhecido) {
+        await onUpdate(player.id, {
+          nome: nome.trim(), genero, nivel: NIVEL_PADRAO, desconhecido: true,
+          ...(detalhado ? { habilidades: habilidadesNeutras() } : {}),
+        });
+      } else if (detalhado && habilidadesCompletas(habilidades)) {
+        await onUpdate(player.id, { nome: nome.trim(), genero, nivel: calcularNivel(habilidades), habilidades, desconhecido: false });
+      } else if (nivel !== null) {
+        await onUpdate(player.id, { nome: nome.trim(), genero, nivel, desconhecido: false });
       }
       onClose();
     } finally {
@@ -107,7 +117,9 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
               <SeletorGenero valor={genero} onChange={setGenero} disabled={submitting} />
             </div>
 
-            {detalhado ? (
+            <NaoConheco ativo={desconhecido} onChange={setDesconhecido} disabled={submitting} />
+
+            {desconhecido ? null : detalhado ? (
               <div>
                 <p className="text-[#7FB2DC] text-sm mb-3">Habilidades</p>
                 <HabilidadesInput
@@ -119,7 +131,7 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
             ) : (
               <div>
                 <p className="text-[#7FB2DC] text-sm mb-3">
-                  Nível: <span className="text-[#1BAF8A]">{NIVEL_LABELS[nivel - 1]}</span>
+                  Nível: <span className="text-[#1BAF8A]">{nivel !== null ? NIVEL_LABELS[nivel - 1] : 'escolha de 1 a 5'}</span>
                 </p>
                 <SeletorNivel valor={nivel} onChange={setNivel} disabled={submitting} alto />
               </div>
@@ -127,7 +139,7 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
 
             <button
               type="submit"
-              disabled={!nome.trim() || submitting || !detalhadoPronto}
+              disabled={!nome.trim() || submitting || !detalhadoPronto || !nivelPronto}
               className="w-full min-h-14 bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#7FB2DC] text-[#0A1628] font-semibold rounded-xl transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (

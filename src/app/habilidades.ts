@@ -15,6 +15,14 @@ export const NOTA_LABELS = ['Fraco', 'Regular', 'Bom', 'Muito bom', 'Excelente']
 // Rótulos do nível geral (avaliação rápida), de 1 a 5. Uma lista só para todas as telas.
 export const NIVEL_LABELS = ['Iniciante', 'Básico', 'Intermediário', 'Avançado', 'Craque'];
 
+// Valor guardado no lugar da nota de quem o organizador não conhece. No sorteio ele é trocado
+// pelo nível médio da lista; o valor guardado só existe para o jogador ter os mesmos campos.
+export const NIVEL_PADRAO = 3;
+
+export function habilidadesNeutras(): Habilidades {
+  return { saque: NIVEL_PADRAO, levantamento: NIVEL_PADRAO, ataque: NIVEL_PADRAO, defesa: NIVEL_PADRAO, movimentacao: NIVEL_PADRAO };
+}
+
 // Nota mínima em Levantamento para o jogador contar como levantador.
 export const MIN_LEVANTADOR = 3;
 
@@ -42,8 +50,18 @@ export function valorHabilidade(p: Player, key: keyof Habilidades): number {
   return p.habilidades?.[key] ?? p.nivel;
 }
 
+// Quem não é conhecido nunca conta como levantador (não há nota de verdade).
 export function ehLevantador(p: Player): boolean {
-  return !!p.habilidades && p.habilidades.levantamento >= MIN_LEVANTADOR;
+  return !p.desconhecido && !!p.habilidades && p.habilidades.levantamento >= MIN_LEVANTADOR;
+}
+
+// Nível médio (inteiro de 1 a 5) de quem foi avaliado. Ignora os jogadores "não conheço" e as
+// vagas abertas (id negativo). Sem ninguém avaliado, usa o valor neutro.
+export function nivelMedioDaLista(players: Player[]): number {
+  const avaliados = players.filter(p => !p.desconhecido && p.id >= 0);
+  if (avaliados.length === 0) return NIVEL_PADRAO;
+  const media = avaliados.reduce((s, p) => s + p.nivel, 0) / avaliados.length;
+  return Math.min(5, Math.max(1, Math.round(media)));
 }
 
 // ─── Modo da lista ────────────────────────────────────────────────────────────

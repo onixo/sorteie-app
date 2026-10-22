@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Minus, Plus, Shuffle, Scale, Venus, UserPlus } from 'lucide-react';
 import { Player, ModoSorteio, ModoClassificacao } from '../types';
-import { ehLevantador } from '../habilidades';
+import { ehLevantador, nivelMedioDaLista } from '../habilidades';
 import { HexBackground } from './HexBackground';
 import { BotaoVoltar } from './BotaoVoltar';
 
@@ -73,9 +73,7 @@ export function SorteioConfig({ players, modo, inicial, onGenerateTeams, onBack 
   const podeAdicionarVagas = deficit > 0 && deficit <= numTimes;
   const vagasLivres = usarVagasLivres && podeAdicionarVagas ? deficit : 0;
   const sobram = players.length + vagasLivres - totalRequired;
-  const nivelMedio = players.length > 0
-    ? Math.round(players.reduce((s, p) => s + p.nivel, 0) / players.length)
-    : 3;
+  const nivelMedio = nivelMedioDaLista(players);
 
   useEffect(() => {
     if (!podeAdicionarVagas) setUsarVagasLivres(false);

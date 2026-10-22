@@ -216,23 +216,29 @@ export function PlayerList({
                   <span className="text-[#F0F4FF] truncate">{player.nome}</span>
                   <span className="text-[#7FB2DC] shrink-0 flex items-center"><GeneroIcon genero={player.genero} size={15} /></span>
                 </div>
-                <div className="flex gap-1" role="img" aria-label={`Nível ${player.nivel} de 5`}>
-                  {[1, 2, 3, 4, 5].map((level) => (
-                    <div
-                      key={level}
-                      className={`w-2 h-2 rounded-full ${level <= player.nivel ? 'bg-[#1BAF8A]' : 'bg-[#7FB2DC]/25'}`}
-                    />
-                  ))}
-                </div>
-                {player.habilidades && (
-                  <div className="grid grid-cols-5 gap-1 mt-2 text-center">
-                    {HABILIDADES.map(({ key, label, abrev }) => (
-                      <div key={key} title={label}>
-                        <div className="text-xs leading-none text-[#7FB2DC]">{abrev}</div>
-                        <div className="text-sm mt-1 leading-none text-[#F0F4FF] tabular-nums" aria-label={`${label}: ${player.habilidades![key]}`}>{player.habilidades![key]}</div>
+                {player.desconhecido ? (
+                  <p className="text-xs text-[#7FB2DC]">Não conheço · entra com o nível médio</p>
+                ) : (
+                  <>
+                    <div className="flex gap-1" role="img" aria-label={`Nível ${player.nivel} de 5`}>
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <div
+                          key={level}
+                          className={`w-2 h-2 rounded-full ${level <= player.nivel ? 'bg-[#1BAF8A]' : 'bg-[#7FB2DC]/25'}`}
+                        />
+                      ))}
+                    </div>
+                    {player.habilidades && (
+                      <div className="grid grid-cols-5 gap-1 mt-2 text-center">
+                        {HABILIDADES.map(({ key, label, abrev }) => (
+                          <div key={key} title={label}>
+                            <div className="text-xs leading-none text-[#7FB2DC]">{abrev}</div>
+                            <div className="text-sm mt-1 leading-none text-[#F0F4FF] tabular-nums" aria-label={`${label}: ${player.habilidades![key]}`}>{player.habilidades![key]}</div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
 

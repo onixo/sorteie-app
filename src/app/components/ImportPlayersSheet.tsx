@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Loader2, ClipboardList, ChevronLeft, ChevronDown, Clipboard } from 'lucide-react';
 import { NewPlayerPayload, Habilidades, ModoClassificacao, ElencoItem } from '../types';
-import { HABILIDADES, NIVEL_LABELS, habilidadesCompletas, calcularNivel } from '../habilidades';
+import { HABILIDADES, NIVEL_LABELS, NIVEL_PADRAO, habilidadesCompletas, habilidadesNeutras, calcularNivel } from '../habilidades';
 import { normalizarNome, indexarElenco } from '../elenco';
 import { HabilidadesInput } from './HabilidadesInput';
 import { SeletorGenero } from './SeletorGenero';
 import { SeletorNivel } from './SeletorNivel';
+import { NaoConheco } from './NaoConheco';
 import { EscolhaModoClassificacao } from './EscolhaModoClassificacao';
 
 interface ImportPlayersSheetProps {
@@ -22,6 +23,7 @@ interface PendingPlayer {
   genero: 'M' | 'F' | 'O' | null;
   nivel: number | null;
   habilidades: Partial<Habilidades>;
+  desconhecido?: boolean; // não conheço: só o gênero é pedido
   preenchidoModo?: ModoClassificacao; // modo em que o elenco já foi aplicado a este jogador
 }
 
@@ -62,6 +64,7 @@ function parsePastedList(text: string): string[] {
 
 function isComplete(p: PendingPlayer, modo: ModoClassificacao): boolean {
   if (p.genero === null) return false;
+  if (p.desconhecido) return true;
   return modo === 'detalhado' ? habilidadesCompletas(p.habilidades) : p.nivel !== null;
 }
 
@@ -267,12 +270,27 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
   const incompleteCount = players.filter(p => !isComplete(p, modo)).length;
   const prontos = players.length - incompleteCount;
 
+  // Jogadores sem nenhuma nota ainda: dá para marcar todos de uma vez como "não conheço"
+  const semNota = players.filter(p => !p.desconhecido && p.nivel === null && Object.keys(p.habilidades).length === 0).length;
+  const marcarRestantesComoDesconhecidos = () => {
+    const proxima = playersRef.current.map(p =>
+      !p.desconhecido && p.nivel === null && Object.keys(p.habilidades).length === 0 ? { ...p, desconhecido: true } : p
+    );
+    commitPlayers(proxima);
+    const primeiroIncompleto = proxima.findIndex(p => !isComplete(p, modo));
+    setExpanded(modo === 'detalhado' && primeiroIncompleto !== -1 ? primeiroIncompleto : null);
+  };
+
   const handleSubmit = async () => {
     if (submitting || !allFilled) return;
     try {
       setSubmitting(true);
       const payloads: NewPlayerPayload[] = players.map(player => {
         const base = { nome: player.nome, genero: player.genero as 'M' | 'F' | 'O' };
+        // Não conheço: guarda o valor neutro e a marca; o sorteio usa o nível médio da lista
+        if (player.desconhecido) {
+          return { ...base, nivel: NIVEL_PADRAO, desconhecido: true, ...(modo === 'detalhado' ? { habilidades: habilidadesNeutras() } : {}) };
+        }
         return modo === 'detalhado' && habilidadesCompletas(player.habilidades)
           ? { ...base, nivel: calcularNivel(player.habilidades), habilidades: player.habilidades }
           : { ...base, nivel: player.nivel as number };
@@ -292,7 +310,7 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
   // Há algo digitado ou preenchido que se perderia ao fechar?
   const temDados =
     text.trim() !== '' ||
-    players.some(p => p.genero !== null || p.nivel !== null || Object.keys(p.habilidades).length > 0);
+    players.some(p => p.genero !== null || p.nivel !== null || p.desconhecido || Object.keys(p.habilidades).length > 0);
 
   const requestClose = () => {
     if (temDados && !submitting) setConfirmClose(true);
@@ -544,6 +562,14 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                     {preenchidosDoElenco} {plural(preenchidosDoElenco, 'já vem preenchido (avaliado antes)', 'já vêm preenchidos (avaliados antes)')}. Confira se algo mudou.
                   </p>
                 )}
+                {semNota > 1 && (
+                  <button
+                    onClick={marcarRestantesComoDesconhecidos}
+                    className="mt-2 text-xs text-[#1E8FD5] underline underline-offset-2 min-h-11 -my-1"
+                  >
+                    Não conheço os {semNota} que faltam avaliar
+                  </button>
+                )}
               </div>
 
               {/* Lista scrollável */}
@@ -581,8 +607,13 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                       {/* Gênero */}
                       <SeletorGenero valor={player.genero} onChange={g => updatePlayer(idx, { genero: g })} sobre="cartao" compacto />
 
+                      {/* Quem o organizador não conhece: só o gênero basta */}
+                      <div className="mt-2">
+                        <NaoConheco ativo={!!player.desconhecido} onChange={v => updatePlayer(idx, { desconhecido: v })} sobre="cartao" compacto />
+                      </div>
+
                       {/* Nível (avaliação rápida) */}
-                      {modo === 'simples' && (
+                      {!player.desconhecido && modo === 'simples' && (
                         <div className="mt-3">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs text-[#7FB2DC]">Nível</span>
@@ -595,7 +626,7 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                       )}
 
                       {/* Habilidades (modo detalhado) */}
-                      {modo === 'detalhado' && (
+                      {!player.desconhecido && modo === 'detalhado' && (
                         <div className="mt-1">
                           <button
                             onClick={() => setExpanded(aberto ? null : idx)}

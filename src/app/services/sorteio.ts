@@ -1,5 +1,5 @@
 import { Player, Time, ResultadoSorteio, ModoSorteio, Habilidades } from '../types';
-import { HABILIDADES, forca, valorHabilidade, ehLevantador, habilidadesCompletas } from '../habilidades';
+import { HABILIDADES, NIVEL_PADRAO, forca, valorHabilidade, ehLevantador, habilidadesCompletas } from '../habilidades';
 
 // Ruído aplicado à força no modo detalhado: com médias decimais quase não há empates,
 // então sem isso as 200 iterações e o "Sortear novamente" gerariam o mesmo resultado.
@@ -329,6 +329,23 @@ function sortearGeneroGarantido(
   return teams;
 }
 
+// Quem o organizador marcou como "não conheço" entra no sorteio com a média dos jogadores
+// avaliados (por habilidade, na avaliação detalhada). A média é calculada a cada sorteio,
+// então acompanha a lista. As vagas abertas (id negativo) não entram na média.
+function aplicarNivelMedio(players: Player[]): Player[] {
+  if (!players.some(p => p.desconhecido)) return players;
+  const avaliados = players.filter(p => !p.desconhecido && p.id >= 0);
+  const media = (valores: number[]) =>
+    valores.length > 0 ? valores.reduce((a, b) => a + b, 0) / valores.length : NIVEL_PADRAO;
+
+  const nivel = Math.min(5, Math.max(1, Math.round(media(avaliados.map(p => p.nivel)))));
+  const habilidades = {} as Habilidades;
+  for (const { key } of HABILIDADES) {
+    habilidades[key] = media(avaliados.filter(p => p.habilidades).map(p => p.habilidades![key]));
+  }
+  return players.map(p => (p.desconhecido ? { ...p, nivel, ...(p.habilidades ? { habilidades } : {}) } : p));
+}
+
 export function sortearTimes(
   players: Player[],
   numTimes: number,
@@ -351,12 +368,13 @@ export function sortearTimes(
     }
   }
 
-  const detalhado = players.some(p => !!p.habilidades);
+  const todos = aplicarNivelMedio(players);
+  const detalhado = todos.some(p => !!p.habilidades);
 
   // Espalhar levantadores só faz sentido se houver pelo menos um por time
-  const regraLev = detalhado && players.filter(ehLevantador).length >= numTimes;
+  const regraLev = detalhado && todos.filter(ehLevantador).length >= numTimes;
 
-  const shuffled = shuffle(players);
+  const shuffled = shuffle(todos);
   const titulares = shuffled.slice(0, needed);
   const reservas = shuffled.slice(needed);
 

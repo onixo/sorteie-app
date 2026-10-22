@@ -11,7 +11,7 @@ import { TriangleAlert, X } from 'lucide-react';
 import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ElencoItem } from './types';
 import { getPlayers, createPlayer, deletePlayer, restorePlayer, updatePlayer, clearPlayers, getElenco, clearElenco, sortear } from './services/api';
 import { ErroSorteio } from './services/sorteio';
-import { modoDaLista } from './habilidades';
+import { modoDaLista, nivelMedioDaLista } from './habilidades';
 
 type Screen = 'list' | 'config' | 'results';
 
@@ -200,9 +200,7 @@ export default function App() {
     try {
       setError(null);
       setVagasLivresCount(vagasLivres);
-      const nivelMedio = players.length > 0
-        ? Math.round(players.reduce((s, p) => s + p.nivel, 0) / players.length)
-        : 3;
+      const nivelMedio = nivelMedioDaLista(players);
       const phantoms: Player[] = Array.from({ length: vagasLivres }, (_, i) => ({
         id: -(i + 1),
         nome: 'Vaga aberta',

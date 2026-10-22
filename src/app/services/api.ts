@@ -33,6 +33,8 @@ function loadElenco(): ElencoItem[] {
 // remove também a entrada do nome anterior para não deixar registro órfão.
 // Falha de gravação do elenco não pode impedir o cadastro do jogador.
 function upsertElenco(player: NewPlayerPayload, nomeAnterior?: string): void {
+  // Sem nota de verdade, não há o que lembrar para a próxima semana
+  if (player.desconhecido) return;
   try {
     const chaveNova = normalizarNome(player.nome);
     const chaves = new Set([chaveNova]);

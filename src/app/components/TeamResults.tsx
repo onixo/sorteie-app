@@ -232,6 +232,9 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
                         {!isVaga(player) && (
                           <span className="text-[#7FB2DC] flex items-center shrink-0"><GeneroIcon genero={player.genero} size={14} /></span>
                         )}
+                        {player.desconhecido && (
+                          <span className="text-xs text-[#7FB2DC] border border-[#7FB2DC]/40 rounded px-1.5 py-0.5 shrink-0">nível médio</span>
+                        )}
                         {ehLevantador(player) && (
                           <span className="text-xs text-[#1E8FD5] border border-[#1E8FD5]/40 rounded px-1.5 py-0.5 shrink-0">Levantador</span>
                         )}

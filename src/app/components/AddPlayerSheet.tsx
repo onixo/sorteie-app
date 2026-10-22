@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { NewPlayerPayload, Habilidades, ModoClassificacao } from '../types';
-import { HABILIDADES, NIVEL_LABELS, habilidadesCompletas, calcularNivel } from '../habilidades';
+import { HABILIDADES, NIVEL_LABELS, NIVEL_PADRAO, habilidadesCompletas, habilidadesNeutras, calcularNivel } from '../habilidades';
 import { HabilidadesInput } from './HabilidadesInput';
 import { EscolhaModoClassificacao } from './EscolhaModoClassificacao';
 import { SeletorGenero } from './SeletorGenero';
 import { SeletorNivel } from './SeletorNivel';
+import { NaoConheco } from './NaoConheco';
 
 interface AddPlayerSheetProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd, modoLista }: AddPlayerS
   // Começam sem escolha: um valor pré-marcado gravaria dado errado se a pessoa só digitasse o nome
   const [genero, setGenero] = useState<'M' | 'F' | 'O' | null>(null);
   const [nivel, setNivel] = useState<number | null>(null);
+  const [desconhecido, setDesconhecido] = useState(false); // não conheço: só o gênero é pedido
   // Lista com jogadores: o modo é o da lista. Lista vazia: pergunta antes do formulário.
   const [modoEscolhido, setModoEscolhido] = useState<ModoClassificacao | null>(null);
   const modo = modoLista ?? modoEscolhido;
@@ -38,13 +40,13 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd, modoLista }: AddPlayerS
     return () => window.removeEventListener('keydown', aoTeclar);
   }, [isOpen, onClose]);
 
-  const detalhadoPronto = modo !== 'detalhado' || habilidadesCompletas(habilidades);
+  const detalhadoPronto = modo !== 'detalhado' || desconhecido || habilidadesCompletas(habilidades);
 
   // O que ainda falta para liberar o botão
   const faltas: string[] = [];
   if (!nome.trim()) faltas.push('nome');
   if (genero === null) faltas.push('gênero');
-  if (modo === 'simples' && nivel === null) faltas.push('nível');
+  if (modo === 'simples' && !desconhecido && nivel === null) faltas.push('nível');
   if (modo === 'detalhado' && !detalhadoPronto) {
     faltas.push(`nota em ${HABILIDADES.filter(h => habilidades[h.key] === undefined).map(h => h.label).join(', ')}`);
   }
@@ -56,7 +58,13 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd, modoLista }: AddPlayerS
 
     try {
       setSubmitting(true);
-      if (modo === 'detalhado' && habilidadesCompletas(habilidades)) {
+      if (desconhecido) {
+        // Sem nota de verdade: guarda o valor neutro e a marca; o sorteio usa o nível médio da lista
+        await onAdd({
+          nome: nome.trim(), genero, nivel: NIVEL_PADRAO, desconhecido: true,
+          ...(modo === 'detalhado' ? { habilidades: habilidadesNeutras() } : {}),
+        });
+      } else if (modo === 'detalhado' && habilidadesCompletas(habilidades)) {
         await onAdd({ nome: nome.trim(), genero, nivel: calcularNivel(habilidades), habilidades });
       } else if (nivel !== null) {
         await onAdd({ nome: nome.trim(), genero, nivel });
@@ -66,6 +74,7 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd, modoLista }: AddPlayerS
       setGenero(null);
       setNivel(null);
       setHabilidades({});
+      setDesconhecido(false);
       onClose();
     } finally {
       setSubmitting(false);
@@ -152,8 +161,11 @@ export function AddPlayerSheet({ isOpen, onClose, onAdd, modoLista }: AddPlayerS
                 <SeletorGenero valor={genero} onChange={setGenero} disabled={submitting} />
               </div>
 
+              {/* Quem o organizador não conhece */}
+              <NaoConheco ativo={desconhecido} onChange={setDesconhecido} disabled={submitting} />
+
               {/* Nível (rápida) ou habilidades (detalhada) */}
-              {modo === 'simples' ? (
+              {desconhecido ? null : modo === 'simples' ? (
                 <div>
                   <p className="text-[#7FB2DC] text-sm mb-3">
                     Nível: <span className="text-[#1BAF8A]">{nivel !== null ? NIVEL_LABELS[nivel - 1] : 'escolha de 1 a 5'}</span>
