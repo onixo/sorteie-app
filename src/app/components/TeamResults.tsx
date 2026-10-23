@@ -23,8 +23,10 @@ const plural = (n: number, singular: string, pluralForma: string) => (n === 1 ? 
 const fmt = (n: number) => n.toFixed(1).replace('.', ',');
 
 // Texto que vai para o grupo do WhatsApp (com negrito) ou para a área de transferência (sem negrito).
-// Só o que os amigos precisam ler: título, times numerados e reservas.
-function montarTexto(times: Time[], reservas: Player[], negrito: boolean): string {
+// Só o que os amigos precisam ler: título, como o sorteio foi feito, times numerados e reservas.
+// `info` é a linha "Sorteio: ... · Avaliação: ...". O emoji do título fica só no texto copiado: no link
+// do WhatsApp ele apareceu como "�" no computador (relato de uso, causa não confirmada), então o link vai só com texto.
+function montarTexto(times: Time[], reservas: Player[], negrito: boolean, info: string): string {
   const b = (t: string) => (negrito ? `*${t}*` : t);
   const nomeDe = (p: Player) => (isVaga(p) ? '(vaga aberta)' : p.nome);
   const blocos = times.map(time =>
@@ -33,7 +35,8 @@ function montarTexto(times: Time[], reservas: Player[], negrito: boolean): strin
   const reservaTexto = reservas.length > 0
     ? `\n\n${b('Reservas')}\n${reservas.map(p => `- ${p.nome}`).join('\n')}`
     : '';
-  return `🏐 ${b('Times do vôlei')}\n\n${blocos.join('\n\n')}${reservaTexto}`;
+  const titulo = `${negrito ? '' : '🏐 '}${b('Times do vôlei')}`;
+  return `${titulo}\n${info}\n\n${blocos.join('\n\n')}${reservaTexto}`;
 }
 
 // Copia o texto. Tenta a API moderna e, se o navegador negar, o método antigo (campo temporário).
@@ -118,15 +121,18 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
   const modoLabel = modoSorteio === 'genero' ? 'Dividir por gênero' : 'Equilibrado';
   const avaliacaoLabel = detalhado ? 'Avaliação detalhada' : 'Avaliação rápida';
 
+  // Linha que acompanha os times no WhatsApp: tipo de sorteio e tipo de avaliação usados
+  const infoTexto = `Sorteio: ${modoLabel} · Avaliação: ${detalhado ? 'detalhada' : 'rápida'}`;
+
   const copiar = async () => {
-    const ok = await copiarTexto(montarTexto(times, reservas, false));
+    const ok = await copiarTexto(montarTexto(times, reservas, false, infoTexto));
     setCopia(ok ? 'ok' : 'erro');
     if (copiaTimer.current) clearTimeout(copiaTimer.current);
     copiaTimer.current = setTimeout(() => setCopia('ocioso'), 2500);
   };
 
   const shareWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(montarTexto(times, reservas, true))}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(montarTexto(times, reservas, true, infoTexto))}`, '_blank');
   };
 
   return (
