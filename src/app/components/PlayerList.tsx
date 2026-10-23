@@ -133,60 +133,6 @@ export function PlayerList({
           />
         )}
 
-        {/* Como os jogadores são avaliados nesta lista: dá para trocar a qualquer momento, sem perder ninguém */}
-        {modo && (
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <p id="rotulo-avaliacao" className="text-[#7FB2DC] text-xs">Avaliação</p>
-            <div
-              role="radiogroup"
-              aria-labelledby="rotulo-avaliacao"
-              className="flex p-1 rounded-lg bg-[#0F2035] border border-[#1E8FD5]/20"
-            >
-              {(['simples', 'detalhado'] as const).map((opcao) => {
-                const ativo = modo === opcao;
-                return (
-                  <button
-                    key={opcao}
-                    role="radio"
-                    aria-checked={ativo}
-                    disabled={ocupado}
-                    onClick={() => escolherAvaliacao(opcao)}
-                    className={`min-h-11 px-4 rounded-md text-sm transition-colors ${
-                      ativo ? 'bg-[#1BAF8A] text-[#0A1628] font-medium' : 'text-[#7FB2DC] hover:text-[#F0F4FF]'
-                    }`}
-                  >
-                    {opcao === 'simples' ? 'Rápida' : 'Detalhada'}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        {modo === 'simples' && !dicaDispensada && confirmando !== 'voltarRapida' && (
-          <div className="mt-2 flex items-start gap-2 rounded-xl border border-[#1E8FD5]/30 bg-[#1E8FD5]/10 pl-4 pr-1 py-2">
-            <p className="flex-1 text-xs text-[#7FB2DC] py-1.5">
-              Quer avaliar saque, levantamento, ataque, defesa e movimentação? Ative a avaliação <span className="text-[#F0F4FF]">Detalhada</span> acima. Ninguém sai da lista.
-            </p>
-            <button
-              onClick={dispensarDica}
-              aria-label="Fechar dica"
-              className="text-[#7FB2DC] hover:text-[#F0F4FF] shrink-0 min-w-11 min-h-11 flex items-center justify-center"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        )}
-        {confirmando === 'voltarRapida' && (
-          <ConfirmarInline
-            texto="Voltar para a avaliação rápida? Cada jogador fica só com o nível geral. Dá para desfazer."
-            confirmar="Voltar para rápida"
-            ocupadoTexto="Mudando…"
-            ocupado={ocupado}
-            onConfirmar={() => executar(() => onConverter('simples'))}
-            onCancelar={() => setConfirmando(null)}
-          />
-        )}
-
         {/* Notas salvas entre as semanas */}
         {elencoCount > 0 && confirmando !== 'apagarNotas' && (
           <div className="flex items-center justify-center gap-2">
@@ -228,6 +174,62 @@ export function PlayerList({
 
       {/* Jogadores */}
       <div className="relative px-4 pt-4 space-y-3">
+        {/* Como os jogadores são avaliados nesta lista: dá para trocar a qualquer momento, sem perder ninguém */}
+        {!loading && modo && (
+          <div className="pb-1">
+            <p id="rotulo-avaliacao" className="text-[#7FB2DC] text-sm mb-2">Como avaliar os jogadores</p>
+            <div role="radiogroup" aria-labelledby="rotulo-avaliacao" className="grid grid-cols-2 gap-2">
+              {([
+                { opcao: 'simples', titulo: 'Rápida', detalhe: 'Um nível de 1 a 5' },
+                { opcao: 'detalhado', titulo: 'Detalhada', detalhe: '5 habilidades' },
+              ] as const).map(({ opcao, titulo, detalhe }) => {
+                const ativo = modo === opcao;
+                return (
+                  <button
+                    key={opcao}
+                    role="radio"
+                    aria-checked={ativo}
+                    disabled={ocupado}
+                    onClick={() => escolherAvaliacao(opcao)}
+                    className={`min-h-14 px-3 py-2 rounded-xl border text-left transition-colors ${
+                      ativo
+                        ? 'bg-[#1BAF8A]/15 border-[#1BAF8A]/60'
+                        : 'bg-[#0F2035] border-[#1E8FD5]/20 hover:border-[#1E8FD5]/50'
+                    }`}
+                  >
+                    <span className={`block text-sm font-medium ${ativo ? 'text-[#1BAF8A]' : 'text-[#F0F4FF]'}`}>{titulo}</span>
+                    <span className="block text-xs text-[#7FB2DC]">{detalhe}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {modo === 'simples' && !dicaDispensada && confirmando !== 'voltarRapida' && (
+              <div className="mt-2 flex items-start gap-2 rounded-xl border border-[#1E8FD5]/30 bg-[#1E8FD5]/10 pl-4 pr-1 py-2">
+                <p className="flex-1 text-xs text-[#7FB2DC] py-1.5">
+                  Quer avaliar saque, levantamento, ataque, defesa e movimentação? Escolha <span className="text-[#F0F4FF]">Detalhada</span>. Ninguém sai da lista.
+                </p>
+                <button
+                  onClick={dispensarDica}
+                  aria-label="Fechar dica"
+                  className="text-[#7FB2DC] hover:text-[#F0F4FF] shrink-0 min-w-11 min-h-11 flex items-center justify-center"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {confirmando === 'voltarRapida' && (
+              <ConfirmarInline
+                texto="Voltar para a avaliação rápida? Cada jogador fica só com o nível geral. Dá para desfazer."
+                confirmar="Voltar para rápida"
+                ocupadoTexto="Mudando…"
+                ocupado={ocupado}
+                onConfirmar={() => executar(() => onConverter('simples'))}
+                onCancelar={() => setConfirmando(null)}
+              />
+            )}
+          </div>
+        )}
+
         {loading && (
           <div className="flex items-center justify-center py-16 gap-3 text-[#7FB2DC]">
             <Loader2 size={24} className="animate-spin" />
