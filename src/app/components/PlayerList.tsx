@@ -25,14 +25,22 @@ interface PlayerListProps {
 
 const plural = (n: number, singular: string, pluralForma: string) => (n === 1 ? singular : pluralForma);
 
-const CHAVE_DICA_DETALHADA = 'sorteie_dica_detalhada_dispensada';
+// Cada modo mostra uma dica sobre o outro; dispensar uma não esconde a outra.
+// A chave 'simples' é a dica "escolha Detalhada" (nome antigo mantido para quem já a fechou).
+const CHAVES_DICA = {
+  simples: 'sorteie_dica_detalhada_dispensada',
+  detalhado: 'sorteie_dica_rapida_dispensada',
+} as const;
 
-function lerDicaDispensada(): boolean {
-  try {
-    return localStorage.getItem(CHAVE_DICA_DETALHADA) === '1';
-  } catch {
-    return false;
-  }
+function lerDicasDispensadas(): Record<ModoClassificacao, boolean> {
+  const ler = (chave: string) => {
+    try {
+      return localStorage.getItem(chave) === '1';
+    } catch {
+      return false;
+    }
+  };
+  return { simples: ler(CHAVES_DICA.simples), detalhado: ler(CHAVES_DICA.detalhado) };
 }
 
 export function PlayerList({
@@ -42,12 +50,12 @@ export function PlayerList({
   // Só uma confirmação aberta por vez: 'limpar' | 'voltarRapida' | 'apagarNotas'
   const [confirmando, setConfirmando] = useState<'limpar' | 'voltarRapida' | 'apagarNotas' | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const [dicaDispensada, setDicaDispensada] = useState(lerDicaDispensada);
+  const [dicasDispensadas, setDicasDispensadas] = useState(lerDicasDispensadas);
 
-  const dispensarDica = () => {
-    setDicaDispensada(true);
+  const dispensarDica = (doModo: ModoClassificacao) => {
+    setDicasDispensadas(prev => ({ ...prev, [doModo]: true }));
     try {
-      localStorage.setItem(CHAVE_DICA_DETALHADA, '1');
+      localStorage.setItem(CHAVES_DICA[doModo], '1');
     } catch {
       // sem armazenamento: a dica some só até recarregar
     }
@@ -203,13 +211,17 @@ export function PlayerList({
                 );
               })}
             </div>
-            {modo === 'simples' && !dicaDispensada && confirmando !== 'voltarRapida' && (
+            {!dicasDispensadas[modo] && confirmando !== 'voltarRapida' && (
               <div className="mt-2 flex items-start gap-2 rounded-xl border border-[#1E8FD5]/30 bg-[#1E8FD5]/10 pl-4 pr-1 py-2">
                 <p className="flex-1 text-xs text-[#7FB2DC] py-1.5">
-                  Quer avaliar saque, levantamento, ataque, defesa e movimentação? Escolha <span className="text-[#F0F4FF]">Detalhada</span>. Ninguém sai da lista.
+                  {modo === 'simples' ? (
+                    <>Quer avaliar saque, levantamento, ataque, defesa e movimentação? Escolha <span className="text-[#F0F4FF]">Detalhada</span>.</>
+                  ) : (
+                    <>Prefere avaliar cada jogador com um único nível de 1 a 5? Escolha <span className="text-[#F0F4FF]">Rápida</span>.</>
+                  )}
                 </p>
                 <button
-                  onClick={dispensarDica}
+                  onClick={() => dispensarDica(modo)}
                   aria-label="Fechar dica"
                   className="text-[#7FB2DC] hover:text-[#F0F4FF] shrink-0 min-w-11 min-h-11 flex items-center justify-center"
                 >
