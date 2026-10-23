@@ -262,7 +262,6 @@ export function PlayerList({
           <div
             key={player.id}
             className="bg-[#0F2035] rounded-xl border border-[#1E8FD5]/20 overflow-hidden"
-            style={{ background: 'linear-gradient(90deg, #1BAF8A08 0px, transparent 4px, #0F2035 4px)' }}
           >
             <div className="flex items-center gap-4 p-4">
               {/* Avatar */}
