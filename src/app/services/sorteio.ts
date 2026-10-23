@@ -368,6 +368,14 @@ export function sortearTimes(
     }
   }
 
+  // Quem ficou sem avaliação (lista trocada de tipo) não entra: sem nota o sorteio não tem o que equilibrar
+  const semNota = players.filter(p => p.semAvaliacao).length;
+  if (semNota > 0) {
+    throw new ErroSorteio(
+      `${semNota} ${semNota === 1 ? 'jogador ainda está' : 'jogadores ainda estão'} sem avaliação. Toque no lápis ao lado do nome para avaliar.`
+    );
+  }
+
   const todos = aplicarNivelMedio(players);
   const detalhado = todos.some(p => !!p.habilidades);
 

@@ -178,7 +178,7 @@ export default function App() {
 
   const handleClearPlayers = () => limparLista('Lista limpa. As notas salvas continuam guardadas.');
 
-  // Troca o tipo de avaliação da lista inteira sem perder jogadores. Desfazer devolve a lista como estava.
+  // Troca o tipo de avaliação da lista inteira: ficam nome e gênero, as notas zeram. Desfazer devolve a lista como estava.
   const converterLista = async (para: ModoClassificacao) => {
     const antes = players;
     try {
@@ -186,8 +186,8 @@ export default function App() {
       setPlayers(convertidos);
       showToast(
         para === 'detalhado'
-          ? 'Avaliação detalhada ativada. Toque no lápis para detalhar cada jogador.'
-          : 'Avaliação rápida ativada. A lista ficou só com o nível de cada jogador.',
+          ? 'Avaliação detalhada ativada. Toque no lápis para avaliar cada jogador.'
+          : 'Avaliação rápida ativada. Toque no lápis para avaliar cada jogador.',
         'success',
         {
           label: 'Desfazer',

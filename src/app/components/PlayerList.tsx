@@ -47,8 +47,9 @@ export function PlayerList({
   players, modo, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onEditPlayer,
   onClearPlayers, onConverter, elencoCount, onForgetElenco, onSortear, ultimoSorteio, onVerUltimoSorteio,
 }: PlayerListProps) {
-  // Só uma confirmação aberta por vez: 'limpar' | 'voltarRapida' | 'apagarNotas'
-  const [confirmando, setConfirmando] = useState<'limpar' | 'voltarRapida' | 'apagarNotas' | null>(null);
+  // Só uma confirmação aberta por vez: 'limpar' | 'trocar' | 'apagarNotas'
+  const [confirmando, setConfirmando] = useState<'limpar' | 'trocar' | 'apagarNotas' | null>(null);
+  const [destino, setDestino] = useState<ModoClassificacao>('simples');
   const [ocupado, setOcupado] = useState(false);
   const [dicasDispensadas, setDicasDispensadas] = useState(lerDicasDispensadas);
 
@@ -61,14 +62,15 @@ export function PlayerList({
     }
   };
 
-  // Rápida para detalhada não perde nada e dá para desfazer: vai direto. O caminho de volta tira as notas por habilidade, então confirma.
+  // Trocar a avaliação zera as notas (ficam nome e gênero). Se já há notas a perder, confirma antes.
   const escolherAvaliacao = (opcao: ModoClassificacao) => {
     if (opcao === modo || ocupado) return;
-    if (opcao === 'detalhado') {
-      setConfirmando(null);
-      executar(() => onConverter('detalhado'));
+    if (comNota > 0) {
+      setDestino(opcao);
+      setConfirmando('trocar');
     } else {
-      setConfirmando('voltarRapida');
+      setConfirmando(null);
+      executar(() => onConverter(opcao));
     }
   };
 
@@ -87,12 +89,15 @@ export function PlayerList({
   const femaleCount = players.filter(p => p.genero === 'F').length;
   const otherCount = players.filter(p => p.genero === 'O').length;
   const podeSortear = totalPlayers >= 2;
+  // Jogadores com nota de verdade (os que se perderiam ao trocar) e os que ainda esperam avaliação
+  const comNota = players.filter(p => !p.desconhecido && !p.semAvaliacao).length;
+  const semAvaliacao = players.filter(p => p.semAvaliacao).length;
 
   const getInitials = (nome: string) =>
     nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <div className={`min-h-screen bg-[#0A1628] ${podeSortear ? 'pb-48' : 'pb-36'}`}>
+    <div className={`min-h-screen bg-[#0A1628] ${podeSortear ? (semAvaliacao > 0 ? 'pb-56' : 'pb-48') : 'pb-36'}`}>
       <HexBackground />
 
       {/* Header compacto: marca em uma linha para a lista aparecer já na primeira tela */}
@@ -211,7 +216,7 @@ export function PlayerList({
                 );
               })}
             </div>
-            {!dicasDispensadas[modo] && confirmando !== 'voltarRapida' && (
+            {!dicasDispensadas[modo] && confirmando !== 'trocar' && (
               <div className="mt-2 flex items-start gap-2 rounded-xl border border-[#1E8FD5]/30 bg-[#1E8FD5]/10 pl-4 pr-1 py-2">
                 <p className="flex-1 text-xs text-[#7FB2DC] py-1.5">
                   {modo === 'simples' ? (
@@ -229,13 +234,13 @@ export function PlayerList({
                 </button>
               </div>
             )}
-            {confirmando === 'voltarRapida' && (
+            {confirmando === 'trocar' && (
               <ConfirmarInline
-                texto="Voltar para a avaliação rápida? Cada jogador fica só com o nível geral. Dá para desfazer."
-                confirmar="Voltar para rápida"
-                ocupadoTexto="Mudando…"
+                texto={`Trocar para a avaliação ${destino === 'detalhado' ? 'detalhada' : 'rápida'}? As notas de ${comNota} ${plural(comNota, 'jogador', 'jogadores')} serão apagadas e você avalia de novo. Nome e gênero ficam. Dá para desfazer.`}
+                confirmar="Trocar avaliação"
+                ocupadoTexto="Trocando…"
                 ocupado={ocupado}
-                onConfirmar={() => executar(() => onConverter('simples'))}
+                onConfirmar={() => executar(() => onConverter(destino))}
                 onCancelar={() => setConfirmando(null)}
               />
             )}
@@ -291,22 +296,17 @@ export function PlayerList({
                 </div>
                 {player.desconhecido ? (
                   <p className="text-xs text-[#7FB2DC]">Não conheço · entra com o nível médio</p>
+                ) : player.semAvaliacao ? (
+                  <p className="text-xs text-[#1E8FD5]">Sem avaliação · toque no lápis para avaliar</p>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1" role="img" aria-label={`Nível ${player.nivel} de 5`}>
-                        {[1, 2, 3, 4, 5].map((level) => (
-                          <div
-                            key={level}
-                            className={`w-2 h-2 rounded-full ${level <= player.nivel ? 'bg-[#1BAF8A]' : 'bg-[#7FB2DC]/25'}`}
-                          />
-                        ))}
-                      </div>
-                      {player.detalhePendente && (
-                        <span className="text-xs text-[#1E8FD5] bg-[#1E8FD5]/10 border border-[#1E8FD5]/30 rounded px-1.5 leading-5">
-                          a detalhar
-                        </span>
-                      )}
+                    <div className="flex gap-1" role="img" aria-label={`Nível ${player.nivel} de 5`}>
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <div
+                          key={level}
+                          className={`w-2 h-2 rounded-full ${level <= player.nivel ? 'bg-[#1BAF8A]' : 'bg-[#7FB2DC]/25'}`}
+                        />
+                      ))}
                     </div>
                     {player.habilidades && (
                       <div className="grid grid-cols-5 gap-1 mt-2 text-center">
@@ -368,14 +368,22 @@ export function PlayerList({
             </button>
           </div>
           {podeSortear ? (
-            <button
-              id="btn-ir-sortear"
-              onClick={onSortear}
-              className="w-full min-h-14 flex items-center justify-center gap-2 rounded-xl bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 text-[#0A1628] font-semibold shadow-lg shadow-[#1BAF8A]/20 transition-all"
-            >
-              <Shuffle size={18} aria-hidden="true" />
-              Sortear times
-            </button>
+            <>
+              {semAvaliacao > 0 && (
+                <p className="text-center text-xs text-[#1E8FD5]">
+                  {semAvaliacao} {plural(semAvaliacao, 'jogador ainda está', 'jogadores ainda estão')} sem avaliação. Toque no lápis para avaliar.
+                </p>
+              )}
+              <button
+                id="btn-ir-sortear"
+                onClick={onSortear}
+                disabled={semAvaliacao > 0}
+                className="w-full min-h-14 flex items-center justify-center gap-2 rounded-xl bg-[#1BAF8A] hover:bg-[#1BAF8A]/90 disabled:bg-[#162844] disabled:text-[#7FB2DC] disabled:shadow-none disabled:cursor-not-allowed text-[#0A1628] font-semibold shadow-lg shadow-[#1BAF8A]/20 transition-all"
+              >
+                <Shuffle size={18} aria-hidden="true" />
+                Sortear times
+              </button>
+            </>
           ) : totalPlayers === 1 ? (
             <p className="text-center text-xs text-[#7FB2DC]">Adicione pelo menos 2 jogadores para sortear.</p>
           ) : null}

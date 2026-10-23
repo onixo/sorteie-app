@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { Player, NewPlayerPayload, Habilidades } from '../types';
-import { HABILIDADES, NIVEL_LABELS, NIVEL_PADRAO, habilidadesCompletas, habilidadesNeutras, calcularNivel } from '../habilidades';
+import { NIVEL_LABELS, NIVEL_PADRAO, habilidadesCompletas, habilidadesNeutras, calcularNivel } from '../habilidades';
 import { HabilidadesInput } from './HabilidadesInput';
 import { SeletorGenero } from './SeletorGenero';
 import { SeletorNivel } from './SeletorNivel';
@@ -12,11 +12,6 @@ interface EditPlayerSheetProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: (id: number, payload: NewPlayerPayload) => Promise<void>;
-}
-
-// Alguma das 5 habilidades difere das notas originais do jogador
-function mudouNotas(atual: Habilidades, original?: Habilidades): boolean {
-  return !original || HABILIDADES.some(({ key }) => atual[key] !== original[key]);
 }
 
 export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlayerSheetProps) {
@@ -34,10 +29,11 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
     if (player) {
       setNome(player.nome);
       setGenero(player.genero);
-      // Quem era "não conheço" abre sem nota: se a pessoa desligar a marca, precisa avaliar de verdade
+      // Quem era "não conheço" ou está sem avaliação abre sem nota: precisa avaliar de verdade
+      const semNota = !!player.desconhecido || !!player.semAvaliacao;
       setDesconhecido(!!player.desconhecido);
-      setNivel(player.desconhecido ? null : player.nivel);
-      setHabilidades(player.desconhecido ? {} : (player.habilidades ?? {}));
+      setNivel(semNota ? null : player.nivel);
+      setHabilidades(semNota ? {} : (player.habilidades ?? {}));
     }
   }, [player]);
 
@@ -59,15 +55,13 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
       setSubmitting(true);
       if (desconhecido) {
         await onUpdate(player.id, {
-          nome: nome.trim(), genero, nivel: NIVEL_PADRAO, desconhecido: true, detalhePendente: false,
+          nome: nome.trim(), genero, nivel: NIVEL_PADRAO, desconhecido: true, semAvaliacao: false,
           ...(detalhado ? { habilidades: habilidadesNeutras() } : {}),
         });
       } else if (detalhado && habilidadesCompletas(habilidades)) {
-        // Segue "a detalhar" enquanto as notas continuarem iguais às que vieram da conversão
-        const pendente = !!player.detalhePendente && !mudouNotas(habilidades, player.habilidades);
-        await onUpdate(player.id, { nome: nome.trim(), genero, nivel: calcularNivel(habilidades), habilidades, desconhecido: false, detalhePendente: pendente });
+        await onUpdate(player.id, { nome: nome.trim(), genero, nivel: calcularNivel(habilidades), habilidades, desconhecido: false, semAvaliacao: false });
       } else if (nivel !== null) {
-        await onUpdate(player.id, { nome: nome.trim(), genero, nivel, desconhecido: false, detalhePendente: false });
+        await onUpdate(player.id, { nome: nome.trim(), genero, nivel, desconhecido: false, semAvaliacao: false });
       }
       onClose();
     } finally {
@@ -129,11 +123,6 @@ export function EditPlayerSheet({ player, isOpen, onClose, onUpdate }: EditPlaye
             {desconhecido ? null : detalhado ? (
               <div>
                 <p className="text-[#7FB2DC] text-sm mb-3">Habilidades</p>
-                {player.detalhePendente && (
-                  <p className="text-xs text-[#7FB2DC] mb-3 rounded-lg border border-[#1E8FD5]/30 bg-[#1E8FD5]/10 px-3 py-2">
-                    As notas começaram iguais ao nível. Ajuste cada habilidade.
-                  </p>
-                )}
                 <HabilidadesInput
                   value={habilidades}
                   onChange={(key, nota) => setHabilidades(prev => ({ ...prev, [key]: nota }))}

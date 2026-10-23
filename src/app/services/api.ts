@@ -33,8 +33,8 @@ function loadElenco(): ElencoItem[] {
 // remove também a entrada do nome anterior para não deixar registro órfão.
 // Falha de gravação do elenco não pode impedir o cadastro do jogador.
 function upsertElenco(player: NewPlayerPayload, nomeAnterior?: string): void {
-  // Sem nota de verdade (não conheço, ou notas ainda iguais ao nível), não há o que lembrar
-  if (player.desconhecido || player.detalhePendente) return;
+  // Sem nota de verdade (não conheço, ou ainda sem avaliação), não há o que lembrar
+  if (player.desconhecido || player.semAvaliacao) return;
   try {
     const chaveNova = normalizarNome(player.nome);
     const chaves = new Set([chaveNova]);
@@ -115,7 +115,7 @@ export async function updatePlayer(id: number, payload: NewPlayerPayload): Promi
   return atualizado;
 }
 
-// Passa a lista para o outro tipo de avaliação, mantendo os jogadores. Não mexe nas notas salvas.
+// Passa a lista para o outro tipo de avaliação, mantendo nome e gênero e zerando as notas. Não mexe nas notas salvas.
 export async function convertPlayers(para: ModoClassificacao): Promise<Player[]> {
   const convertidos = converterAvaliacao(loadPlayers(), para);
   savePlayers(convertidos);
