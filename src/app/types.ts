@@ -22,6 +22,9 @@ export interface Player {
   // O organizador não conhece o jogador: só o gênero foi informado. `nivel` (e `habilidades`, no modo
   // detalhado) guardam o valor neutro e, no sorteio, o jogador entra com o nível médio da lista.
   desconhecido?: boolean;
+  // Veio da conversão rápida para detalhada: as 5 notas começaram iguais ao nível e ainda não
+  // foram ajustadas. Não conta como levantador nem vai para as notas salvas até ser detalhado.
+  detalhePendente?: boolean;
   criado_em?: string;
 }
 
@@ -35,7 +38,7 @@ export interface ElencoItem {
 }
 
 // Payload para criar um novo jogador (sem id nem timestamp)
-export type NewPlayerPayload = Pick<Player, 'nome' | 'genero' | 'nivel' | 'habilidades' | 'desconhecido'>;
+export type NewPlayerPayload = Pick<Player, 'nome' | 'genero' | 'nivel' | 'habilidades' | 'desconhecido' | 'detalhePendente'>;
 
 // ─── Time (resposta do POST /sorteio) ─────────────────────────────────────────
 

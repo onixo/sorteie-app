@@ -1,7 +1,7 @@
-import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ElencoItem } from '../types';
+import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ModoClassificacao, ElencoItem } from '../types';
 import { sortearTimes } from './sorteio';
 import { normalizarNome } from '../elenco';
-import { calcularNivel } from '../habilidades';
+import { calcularNivel, converterAvaliacao } from '../habilidades';
 
 const STORAGE_KEY = 'sorteie_players';
 const ELENCO_KEY = 'sorteie_elenco';
@@ -33,8 +33,8 @@ function loadElenco(): ElencoItem[] {
 // remove também a entrada do nome anterior para não deixar registro órfão.
 // Falha de gravação do elenco não pode impedir o cadastro do jogador.
 function upsertElenco(player: NewPlayerPayload, nomeAnterior?: string): void {
-  // Sem nota de verdade, não há o que lembrar para a próxima semana
-  if (player.desconhecido) return;
+  // Sem nota de verdade (não conheço, ou notas ainda iguais ao nível), não há o que lembrar
+  if (player.desconhecido || player.detalhePendente) return;
   try {
     const chaveNova = normalizarNome(player.nome);
     const chaves = new Set([chaveNova]);
@@ -113,6 +113,13 @@ export async function updatePlayer(id: number, payload: NewPlayerPayload): Promi
   const atualizado = updated.find(p => p.id === id)!;
   upsertElenco(atualizado, nomeAnterior);
   return atualizado;
+}
+
+// Passa a lista para o outro tipo de avaliação, mantendo os jogadores. Não mexe nas notas salvas.
+export async function convertPlayers(para: ModoClassificacao): Promise<Player[]> {
+  const convertidos = converterAvaliacao(loadPlayers(), para);
+  savePlayers(convertidos);
+  return convertidos;
 }
 
 export async function clearPlayers(): Promise<void> {
