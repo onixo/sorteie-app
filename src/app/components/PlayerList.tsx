@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Plus, Loader2, ClipboardList, Trash2, Pencil, Shuffle } from 'lucide-react';
+import { Users, Plus, Loader2, ClipboardList, Trash2, Pencil, Shuffle, X } from 'lucide-react';
 import { Player, ModoClassificacao } from '../types';
 import { HABILIDADES } from '../habilidades';
 import { HexBackground } from './HexBackground';
@@ -15,7 +15,7 @@ interface PlayerListProps {
   onRemovePlayer: (id: number) => void;
   onEditPlayer: (player: Player) => void;
   onClearPlayers: () => Promise<void>;
-  onChangeMode: () => Promise<void>;
+  onConverter: (para: ModoClassificacao) => Promise<void>;
   elencoCount: number;
   onForgetElenco: () => Promise<void>;
   onSortear: () => void;
@@ -25,13 +25,44 @@ interface PlayerListProps {
 
 const plural = (n: number, singular: string, pluralForma: string) => (n === 1 ? singular : pluralForma);
 
+const CHAVE_DICA_DETALHADA = 'sorteie_dica_detalhada_dispensada';
+
+function lerDicaDispensada(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_DICA_DETALHADA) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function PlayerList({
   players, modo, loading, onAddPlayer, onImportPlayers, onRemovePlayer, onEditPlayer,
-  onClearPlayers, onChangeMode, elencoCount, onForgetElenco, onSortear, ultimoSorteio, onVerUltimoSorteio,
+  onClearPlayers, onConverter, elencoCount, onForgetElenco, onSortear, ultimoSorteio, onVerUltimoSorteio,
 }: PlayerListProps) {
-  // Só uma confirmação aberta por vez: 'limpar' | 'mudar' | 'apagarNotas'
-  const [confirmando, setConfirmando] = useState<'limpar' | 'mudar' | 'apagarNotas' | null>(null);
+  // Só uma confirmação aberta por vez: 'limpar' | 'voltarRapida' | 'apagarNotas'
+  const [confirmando, setConfirmando] = useState<'limpar' | 'voltarRapida' | 'apagarNotas' | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [dicaDispensada, setDicaDispensada] = useState(lerDicaDispensada);
+
+  const dispensarDica = () => {
+    setDicaDispensada(true);
+    try {
+      localStorage.setItem(CHAVE_DICA_DETALHADA, '1');
+    } catch {
+      // sem armazenamento: a dica some só até recarregar
+    }
+  };
+
+  // Rápida para detalhada não perde nada e dá para desfazer: vai direto. O caminho de volta tira as notas por habilidade, então confirma.
+  const escolherAvaliacao = (opcao: ModoClassificacao) => {
+    if (opcao === modo || ocupado) return;
+    if (opcao === 'detalhado') {
+      setConfirmando(null);
+      executar(() => onConverter('detalhado'));
+    } else {
+      setConfirmando('voltarRapida');
+    }
+  };
 
   const executar = async (acao: () => Promise<void>) => {
     try {
@@ -102,27 +133,56 @@ export function PlayerList({
           />
         )}
 
-        {/* Como os jogadores são avaliados nesta lista */}
-        {modo && confirmando !== 'mudar' && (
-          <div className="flex items-center justify-center gap-2">
-            <p className="text-[#7FB2DC] text-xs">
-              Avaliação {modo === 'detalhado' ? 'detalhada (5 habilidades)' : 'rápida (nível de 1 a 5)'}
+        {/* Como os jogadores são avaliados nesta lista: dá para trocar a qualquer momento, sem perder ninguém */}
+        {modo && (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p id="rotulo-avaliacao" className="text-[#7FB2DC] text-xs">Avaliação</p>
+            <div
+              role="radiogroup"
+              aria-labelledby="rotulo-avaliacao"
+              className="flex p-1 rounded-lg bg-[#0F2035] border border-[#1E8FD5]/20"
+            >
+              {(['simples', 'detalhado'] as const).map((opcao) => {
+                const ativo = modo === opcao;
+                return (
+                  <button
+                    key={opcao}
+                    role="radio"
+                    aria-checked={ativo}
+                    disabled={ocupado}
+                    onClick={() => escolherAvaliacao(opcao)}
+                    className={`min-h-11 px-4 rounded-md text-sm transition-colors ${
+                      ativo ? 'bg-[#1BAF8A] text-[#0A1628] font-medium' : 'text-[#7FB2DC] hover:text-[#F0F4FF]'
+                    }`}
+                  >
+                    {opcao === 'simples' ? 'Rápida' : 'Detalhada'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {modo === 'simples' && !dicaDispensada && confirmando !== 'voltarRapida' && (
+          <div className="mt-2 flex items-start gap-2 rounded-xl border border-[#1E8FD5]/30 bg-[#1E8FD5]/10 pl-4 pr-1 py-2">
+            <p className="flex-1 text-xs text-[#7FB2DC] py-1.5">
+              Quer avaliar saque, levantamento, ataque, defesa e movimentação? Ative a avaliação <span className="text-[#F0F4FF]">Detalhada</span> acima. Ninguém sai da lista.
             </p>
             <button
-              onClick={() => setConfirmando('mudar')}
-              className="text-xs text-[#1E8FD5] underline underline-offset-2 min-h-11 px-2 -my-2"
+              onClick={dispensarDica}
+              aria-label="Fechar dica"
+              className="text-[#7FB2DC] hover:text-[#F0F4FF] shrink-0 min-w-11 min-h-11 flex items-center justify-center"
             >
-              Mudar
+              <X size={16} />
             </button>
           </div>
         )}
-        {modo && confirmando === 'mudar' && (
+        {confirmando === 'voltarRapida' && (
           <ConfirmarInline
-            texto={`Para mudar a avaliação, a lista atual (${totalPlayers} ${plural(totalPlayers, 'jogador', 'jogadores')}) será apagada. As notas salvas continuam. Continuar?`}
-            confirmar="Apagar lista e mudar"
-            ocupadoTexto="Apagando…"
+            texto="Voltar para a avaliação rápida? Cada jogador fica só com o nível geral. Dá para desfazer."
+            confirmar="Voltar para rápida"
+            ocupadoTexto="Mudando…"
             ocupado={ocupado}
-            onConfirmar={() => executar(onChangeMode)}
+            onConfirmar={() => executar(() => onConverter('simples'))}
             onCancelar={() => setConfirmando(null)}
           />
         )}
@@ -220,13 +280,20 @@ export function PlayerList({
                   <p className="text-xs text-[#7FB2DC]">Não conheço · entra com o nível médio</p>
                 ) : (
                   <>
-                    <div className="flex gap-1" role="img" aria-label={`Nível ${player.nivel} de 5`}>
-                      {[1, 2, 3, 4, 5].map((level) => (
-                        <div
-                          key={level}
-                          className={`w-2 h-2 rounded-full ${level <= player.nivel ? 'bg-[#1BAF8A]' : 'bg-[#7FB2DC]/25'}`}
-                        />
-                      ))}
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1" role="img" aria-label={`Nível ${player.nivel} de 5`}>
+                        {[1, 2, 3, 4, 5].map((level) => (
+                          <div
+                            key={level}
+                            className={`w-2 h-2 rounded-full ${level <= player.nivel ? 'bg-[#1BAF8A]' : 'bg-[#7FB2DC]/25'}`}
+                          />
+                        ))}
+                      </div>
+                      {player.detalhePendente && (
+                        <span className="text-xs text-[#1E8FD5] bg-[#1E8FD5]/10 border border-[#1E8FD5]/30 rounded px-1.5 leading-5">
+                          a detalhar
+                        </span>
+                      )}
                     </div>
                     {player.habilidades && (
                       <div className="grid grid-cols-5 gap-1 mt-2 text-center">

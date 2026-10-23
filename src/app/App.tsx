@@ -8,8 +8,8 @@ import { TeamResults } from './components/TeamResults';
 import { Toast } from './components/Toast';
 import { InstallBanner } from './components/InstallBanner';
 import { TriangleAlert, X } from 'lucide-react';
-import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ElencoItem } from './types';
-import { getPlayers, createPlayer, deletePlayer, restorePlayer, updatePlayer, clearPlayers, getElenco, clearElenco, sortear } from './services/api';
+import { Player, NewPlayerPayload, ResultadoSorteio, ModoSorteio, ModoClassificacao, ElencoItem } from './types';
+import { getPlayers, createPlayer, deletePlayer, restorePlayer, updatePlayer, clearPlayers, convertPlayers, getElenco, clearElenco, sortear } from './services/api';
 import { ErroSorteio } from './services/sorteio';
 import { modoDaLista, nivelMedioDaLista } from './habilidades';
 
@@ -178,8 +178,33 @@ export default function App() {
 
   const handleClearPlayers = () => limparLista('Lista limpa. As notas salvas continuam guardadas.');
 
-  // Mudar a avaliação exige lista vazia: limpa e deixa o tipo ser escolhido de novo
-  const handleChangeMode = () => limparLista('Lista limpa. Escolha o tipo de avaliação ao adicionar jogadores.');
+  // Troca o tipo de avaliação da lista inteira sem perder jogadores. Desfazer devolve a lista como estava.
+  const converterLista = async (para: ModoClassificacao) => {
+    const antes = players;
+    try {
+      const convertidos = await convertPlayers(para);
+      setPlayers(convertidos);
+      showToast(
+        para === 'detalhado'
+          ? 'Avaliação detalhada ativada. Toque no lápis para detalhar cada jogador.'
+          : 'Avaliação rápida ativada. A lista ficou só com o nível de cada jogador.',
+        'success',
+        {
+          label: 'Desfazer',
+          onClick: async () => {
+            try {
+              for (const p of antes) await restorePlayer(p);
+              setPlayers(antes);
+            } catch (err) {
+              setError(mensagemDeErro(err, 'Não deu para desfazer. Use a opção Avaliação para voltar.'));
+            }
+          },
+        },
+      );
+    } catch (err) {
+      setError(mensagemDeErro(err, 'Não deu para mudar a avaliação. Tente de novo.'));
+    }
+  };
 
   const handleForgetElenco = async () => {
     try {
@@ -292,7 +317,7 @@ export default function App() {
             onRemovePlayer={removePlayer}
             onEditPlayer={setEditingPlayer}
             onClearPlayers={handleClearPlayers}
-            onChangeMode={handleChangeMode}
+            onConverter={converterLista}
             elencoCount={elenco.length}
             onForgetElenco={handleForgetElenco}
             onSortear={() => setScreen('config')}

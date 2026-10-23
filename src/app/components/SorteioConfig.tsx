@@ -83,6 +83,7 @@ export function SorteioConfig({ players, modo, inicial, onGenerateTeams, onBack 
 
   // Regra do modo detalhado: espalhar quem levanta bem (Levantamento 3 ou mais) entre os times
   const levantadores = players.filter(ehLevantador).length;
+  const pendentes = players.filter(p => p.detalhePendente).length;
 
   const handleGenerate = async () => {
     if (!canGenerate || sorting) return;
@@ -204,6 +205,13 @@ export function SorteioConfig({ players, modo, inicial, onGenerateTeams, onBack 
             {levantadores >= numTimes
               ? `Quem levanta bem (nota 3 ou mais em Levantamento) fica em times diferentes sempre que possível. Na lista: ${levantadores}.`
               : `Há ${levantadores} ${plural(levantadores, 'jogador', 'jogadores')} com nota 3 ou mais em Levantamento para ${numTimes} times. Os times serão montados pelo conjunto das notas.`}
+          </div>
+        )}
+
+        {/* Notas ainda iguais ao nível (lista convertida): o sorteio funciona, só não usa as habilidades de verdade */}
+        {modo === 'detalhado' && pendentes > 0 && (
+          <div className="rounded-xl px-4 py-3 border text-sm bg-[#1E8FD5]/10 border-[#1E8FD5]/30 text-[#7FB2DC]">
+            {pendentes} {plural(pendentes, 'jogador ainda está', 'jogadores ainda estão')} com as notas iguais ao nível. Detalhe pelo lápis na lista para o sorteio usar as habilidades.
           </div>
         )}
 
