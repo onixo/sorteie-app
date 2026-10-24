@@ -276,6 +276,12 @@ export function TeamResults({ resultado, onBack, onShuffle }: TeamResultsProps) 
             </div>
           </div>
         )}
+
+        {/* Assinatura da marca: o dourado da logo só aparece aqui e no topo da lista */}
+        <p className="flex items-center justify-center gap-2 pt-4 text-xs text-[#C9A952]">
+          <img src="/logo.png" alt="" className="h-5 w-auto" />
+          Feito por Bull Analytics
+        </p>
       </div>
 
       {/* Barra fixa: enviar para o grupo é a ação principal */}
