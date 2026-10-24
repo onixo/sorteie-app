@@ -110,7 +110,13 @@ export default function App() {
       for (const payload of payloads) {
         created.push(await createPlayer(payload));
       }
-      showToast(`${created.length} ${plural(created.length, 'entrou', 'entraram')} na lista!`);
+      // Fecha o ciclo: confirma que salvou e leva direto ao sorteio quando já dá para sortear
+      const pronto = players.length + created.length >= 2 && !players.some(p => p.semAvaliacao);
+      showToast(
+        `${created.length} ${plural(created.length, 'jogador salvo', 'jogadores salvos')} na lista.${pronto ? ' Pronto para sortear.' : ''}`,
+        'success',
+        pronto ? { label: 'Sortear', onClick: () => setScreen('config') } : undefined,
+      );
     } catch (err) {
       setError(mensagemDeErro(err, 'Não deu para adicionar os jogadores. Tente de novo.'));
     }

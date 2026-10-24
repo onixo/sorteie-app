@@ -390,7 +390,11 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
           {/* Confirmação ao fechar com dados preenchidos */}
           {confirmClose && (
             <div className="mx-6 mb-3 shrink-0 flex items-center justify-between gap-3 bg-[#d4183d]/10 border border-[#d4183d]/40 rounded-xl px-4 py-3">
-              <span className="text-sm text-[#ff6b86]">Descartar o que você preencheu?</span>
+              <span className="text-sm text-[#ff6b86]">
+                {step === 'configure' && players.length > 0
+                  ? `Fechar agora descarta o que você preencheu. ${players.length === 1 ? 'O jogador não entra' : `Os ${players.length} jogadores não entram`} na lista.`
+                  : 'Descartar o que você preencheu?'}
+              </span>
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={() => setConfirmClose(false)} className="text-sm text-[#7FB2DC] hover:text-[#F0F4FF] min-h-11 px-2">
                   Continuar editando
@@ -678,6 +682,12 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                     <div className="h-1 rounded-full bg-[#7FB2DC]/20 overflow-hidden">
                       <div className="h-full bg-[#1BAF8A] transition-all duration-300" style={{ width: `${players.length > 0 ? (prontos / players.length) * 100 : 0}%` }} />
                     </div>
+                    {/* Diz o que acontece ao salvar e que nada é guardado antes disso */}
+                    <p className={`text-center text-xs mt-1.5 ${allFilled ? 'text-[#1BAF8A]' : 'text-[#7FB2DC]'}`}>
+                      {allFilled
+                        ? 'Tudo avaliado. Ao salvar, eles entram na lista e você já pode sortear.'
+                        : 'Suas escolhas só ficam guardadas ao salvar.'}
+                    </p>
                   </div>
                 )}
                 <button
@@ -688,10 +698,14 @@ export function ImportPlayersSheet({ isOpen, onClose, onAddMany, modoLista, nome
                   {submitting ? (
                     <>
                       <Loader2 size={18} className="animate-spin" />
-                      Adicionando…
+                      Salvando…
                     </>
+                  ) : allFilled ? (
+                    `Salvar ${players.length} ${plural(players.length, 'jogador', 'jogadores')} na lista`
+                  ) : incompleteCount > 0 ? (
+                    `${plural(incompleteCount, 'Falta', 'Faltam')} ${incompleteCount} para avaliar`
                   ) : (
-                    `Adicionar ${players.length} ${plural(players.length, 'jogador', 'jogadores')}`
+                    'Salvar na lista'
                   )}
                 </button>
               </div>
